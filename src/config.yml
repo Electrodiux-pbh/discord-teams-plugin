@@ -1,0 +1,48 @@
+discord:
+  bot:
+    token: "MTEyMzQwMzU2OTI4NzE0NzU1MQ.GiVZ5E.SAsQ9U5n1COW6apZ8nXMT8XDzWXR8SSJ0Bk1Fg"
+    activity:
+      type: "PLAYING"
+      text: "Minecraft Server"
+  global-channel-id: 1123403750720159776
+  teams-category-id: 1123603411137482822
+  
+  account-link:
+    verification-timeout: 300 # The time needed to verify the account in seconds (5 minutes) if the value is -1 there is no verification timeout until the server restarts
+
+  notifications:
+    connection-messages: true # Notify when a player connects or disconnects from the server
+    player-death-messages: true # Notify when a player dies
+    advancement-messages: true # Notify when a player gets an advancement
+    server-start: true # Notify when the server starts
+    server-stop: true # Notify when the server stops
+
+messages:
+  en:
+    plugin-enabled: "%name% v%version% has been enabled!"
+
+    chat:
+      minecraft-format: "&6&l[&9&lDiscord&6&l] &c<%username%> &f%message%"
+      discord-format: "```<%username%> %message%```"
+    linking:
+      minecraft:
+        link-reset: "&fThe verification code for the account &6&l%account% &fhas been reset."
+        verfication-code: "&fThe verification code for the account is &6&l%code%&f, please send it to the bot in a private message. You have %timeout% seconds to send the code."
+        user-not-found: "&fThe discord user &6&l%account% &fwas not found."
+        link-success: "&fDiscord account &6&l%account% &fhas been linked to your minecraft account."
+      bot:
+        linking-attempt: "The minecraft player '%player%' is trying to link to this discord account. Please ignore it or send the verification code provided to link."
+        invalid-code-format: "The code provided is invalid, please try again."
+        link-success: "The minecraft player '%player%' has been linked to yout discord account."
+        code-expired: "The code provided has expired, please create a new one."
+        invalid-code: "The code you entered is invalid."
+        no-link-code: "You have not generated a code yet, please use the command **/team discordlink <discord-username>** to generate one."
+    player:
+      connected: "The player **%player%** has connected to the server."
+      disconnected: "The player **%player%** has disconnected from the server."
+      advancement-gained: "**%player%** has gained the advancement **%advancement%**."
+    server:
+      start: "The server has started."
+      stop: "The server has stopped."
+
+    

@@ -1,0 +1,8 @@
+main: com.electrodiux.discordteams.PluginMain
+version: 1.0
+name: DiscordTeams
+api-version: 1.16
+
+commands:
+  team:
+    description: DiscordTeams command

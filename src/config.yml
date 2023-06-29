@@ -1,11 +1,11 @@
 discord:
   bot:
-    token: "MTEyMzQwMzU2OTI4NzE0NzU1MQ.GiVZ5E.SAsQ9U5n1COW6apZ8nXMT8XDzWXR8SSJ0Bk1Fg"
+    token: ""
     activity:
       type: "PLAYING"
       text: "Minecraft Server"
-  global-channel-id: 1123403750720159776
-  teams-category-id: 1123603411137482822
+  global-channel-id: 0
+  teams-category-id: 0
   
   account-link:
     verification-timeout: 300 # The time needed to verify the account in seconds (5 minutes) if the value is -1 there is no verification timeout until the server restarts

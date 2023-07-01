@@ -5,6 +5,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 
+import javax.annotation.Nonnull;
+
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -16,7 +18,7 @@ import com.electrodiux.discordteams.PluginMain;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 
-public class AccountLinker {
+public class LinkVerification {
 
     private UUID playerId;
     private String playerName;
@@ -27,7 +29,7 @@ public class AccountLinker {
     private int code;
     private long timeSpan;
 
-    private AccountLinker(UUID playerId, String playerName, long discordId, String discordUsername, int code,
+    private LinkVerification(UUID playerId, String playerName, long discordId, String discordUsername, int code,
             long timeSpan) {
         this.playerId = playerId;
         this.playerName = playerName;
@@ -51,9 +53,10 @@ public class AccountLinker {
         return this.discordUsername.equals(discordUsername);
     }
 
-    private static Map<UUID, AccountLinker> links = new HashMap<>();
+    private static Map<UUID, LinkVerification> links = new HashMap<>();
 
-    public static AccountLinker createLink(Player player, String discordUsername, CommandSender sender) {
+    public static LinkVerification createLink(@Nonnull Player player, @Nonnull String discordUsername,
+            @Nonnull CommandSender sender) {
         int code = (int) (Math.random() * 1000000);
 
         int timeout = PluginMain.getConfiguration().getInt("discord.account-link.verification-timeout");
@@ -62,43 +65,43 @@ public class AccountLinker {
         User discordUser = DiscordManager.getUser(discordUsername);
         if (discordUser == null) {
             sender.sendMessage(
-                    Messages.getMessageWithColorCodes("linking.minecraft.user-not-found",
+                    Messages.getMessage("linking.minecraft.user-not-found",
                             "%account%", discordUsername));
             return null;
         }
 
         if (links.containsKey(player.getUniqueId())) {
-            AccountLinker previousLink = links.get(player.getUniqueId());
+            LinkVerification previousLink = links.get(player.getUniqueId());
             sender.sendMessage(
-                    Messages.getMessageWithColorCodes("linking.minecraft.link-reset",
+                    Messages.getMessage("linking.minecraft.link-reset",
                             "%account%", previousLink.getDiscordUsername()));
         }
 
-        AccountLinker link = new AccountLinker(player.getUniqueId(), player.getName(), discordUser.getIdLong(),
+        LinkVerification link = new LinkVerification(player.getUniqueId(), player.getName(), discordUser.getIdLong(),
                 discordUsername, code, timeSpan);
 
         links.put(link.getPlayerId(), link);
 
         sender.sendMessage(
-                Messages.getMessageWithColorCodes("linking.minecraft.verfication-code")
+                Messages.getMessage("linking.minecraft.verfication-code")
                         .replace("%code%", String.valueOf(code))
                         .replace("%timeout%", String.valueOf(timeout)));
 
         discordUser.openPrivateChannel().queue((channel) -> {
-            channel.sendMessage(Messages.getMessage("linking.bot.linking-attempt")
-                    .replace("%player%", link.getPlayerName())).queue();
+            channel.sendMessage(Messages.getMessage("linking.bot.linking-attempt",
+                    "%player%", player.getName())).queue();
         });
 
         return link;
     }
 
     public static void checkCode(String discordUsername, int code, MessageChannelUnion channel) {
-        Iterator<AccountLinker> iterator = links.values().iterator();
+        Iterator<LinkVerification> iterator = links.values().iterator();
 
         boolean userFound = false;
 
         while (iterator.hasNext()) {
-            AccountLinker link = iterator.next();
+            LinkVerification link = iterator.next();
 
             if (link.matchDiscordUser(discordUsername)) {
                 userFound = true;
@@ -117,8 +120,8 @@ public class AccountLinker {
                             Messages.getMessage("linking.bot.link-success", "%player%", link.getPlayerName())).queue();
 
                     Player player = Bukkit.getPlayer(link.getPlayerId());
-                    player.sendMessage(Messages.getMessageWithColorCodes("linking.minecraft.link-success")
-                            .replace("%account%", link.getDiscordUsername()));
+                    player.sendMessage(Messages.getMessage("linking.minecraft.link-success",
+                            "%account%", link.getDiscordUsername()));
 
                     return;
                 }
@@ -156,12 +159,12 @@ public class AccountLinker {
         return discordId;
     }
 
-    public static Map<UUID, AccountLinker> getLinks() {
+    public static Map<UUID, LinkVerification> getLinks() {
         return links;
     }
 
-    public static void setLinks(Map<UUID, AccountLinker> links) {
-        AccountLinker.links = links;
+    public static void setLinks(Map<UUID, LinkVerification> links) {
+        LinkVerification.links = links;
     }
 
 }

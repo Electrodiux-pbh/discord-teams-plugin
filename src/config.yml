@@ -4,6 +4,8 @@ discord:
     activity:
       type: "PLAYING"
       text: "Minecraft Server"
+    minecraft-command-prefix: "!"
+  server-id: 0
   global-channel-id: 0
   teams-category-id: 0
   
@@ -20,23 +22,41 @@ discord:
 messages:
   en:
     plugin-enabled: "%name% v%version% has been enabled!"
+    no-console-command: "Cannot execute this command from the console."
+    no-team: "&cYou are not in a team."
+
+    minecraft-command:
+      executed: "The command **/%command%** has been executed."
+      not-executed: "The command **/%command%** could not be executed."
+      not-found: "The command **/%command%** was not found."
+      no-permission: "You do not have the permission to execute this command."
+      error: "An error occured while executing this command."
+
+    command:
+      no-team-name: "&cYou must specify a team name."
 
     chat:
       minecraft-format: "&6&l[&9&lDiscord&6&l] &c<%username%> &f%message%"
+      minecraft-edited-format: "&6&l[&9&lDiscord&6&l] &c<%username%> &f%message% &7&l(Edited)"
       discord-format: "```<%username%> %message%```"
     linking:
+      no-linked-account: "Your discord account have not been linked with minecraft, please use the command **/team discordlink <discord-username>** to link it."
       minecraft:
         link-reset: "&fThe verification code for the account &6&l%account% &fhas been reset."
         verfication-code: "&fThe verification code for the account is &6&l%code%&f, please send it to the bot in a private message. You have %timeout% seconds to send the code."
         user-not-found: "&fThe discord user &6&l%account% &fwas not found."
         link-success: "&fDiscord account &6&l%account% &fhas been linked to your minecraft account."
+        unlink-success: "&fDiscord account &6&l%account% &fhas been unlinked from your minecraft account."
+        no-discord-account: "&fYou have not a linked discord account"
       bot:
         linking-attempt: "The minecraft player '%player%' is trying to link to this discord account. Please ignore it or send the verification code provided to link."
         invalid-code-format: "The code provided is invalid, please try again."
-        link-success: "The minecraft player '%player%' has been linked to yout discord account."
+        link-success: "The minecraft player '%player%' has been linked to your discord account."
+        unlink-success: "The minecraft player '%player%' has been unlinked from your discord account."
         code-expired: "The code provided has expired, please create a new one."
         invalid-code: "The code you entered is invalid."
         no-link-code: "You have not generated a code yet, please use the command **/team discordlink <discord-username>** to generate one."
+        no-minecraft-account: "You have not a linked minecraft account"
     player:
       connected: "The player **%player%** has connected to the server."
       disconnected: "The player **%player%** has disconnected from the server."

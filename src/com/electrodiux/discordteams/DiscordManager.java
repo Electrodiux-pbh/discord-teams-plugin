@@ -2,6 +2,8 @@ package com.electrodiux.discordteams;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.security.auth.login.LoginException;
 
 import org.bukkit.Bukkit;
@@ -13,9 +15,12 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Activity.ActivityType;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 
@@ -24,8 +29,8 @@ public class DiscordManager {
     private static JavaPlugin plugin;
     private static JDA api;
 
+    private static Guild guild;
     private static TextChannel globalChannel;
-
     private static Category teamsCategory;
 
     public static boolean setup(JavaPlugin plugin) {
@@ -41,8 +46,14 @@ public class DiscordManager {
         boolean settedup = setupDiscord(botToken);
 
         if (settedup) {
-            globalChannel = getTextChannel(PluginMain.getConfiguration().getString("discord.global-channel-id"));
-            teamsCategory = getCategory(PluginMain.getConfiguration().getString("discord.teams-category-id"));
+            guild = getGuildById(PluginMain.getConfiguration().getLong("discord.server-id", 0));
+            globalChannel = getTextChannel(PluginMain.getConfiguration().getLong("discord.global-channel-id", 0));
+            teamsCategory = getCategory(PluginMain.getConfiguration().getLong("discord.teams-category-id", 0));
+
+            if (globalChannel == null || teamsCategory == null || guild == null) {
+                throw new IllegalStateException(
+                        "An error occurred while searching, please check your config and try again.");
+            }
         }
 
         return settedup;
@@ -81,7 +92,7 @@ public class DiscordManager {
         String activityType = PluginMain.getConfiguration().getString("discord.bot.activity.type");
         String activityText = PluginMain.getConfiguration().getString("discord.bot.activity.text");
 
-        if (activityType != null || activityText != null) {
+        if (activityType != null && activityText != null) {
             ActivityType type = ActivityType.valueOf(activityType);
             if (type != null) {
                 builder.setActivity(Activity.of(type, activityText));
@@ -96,21 +107,33 @@ public class DiscordManager {
         api.shutdown();
     }
 
-    public static TextChannel getTextChannel(String id) {
-        if (id != null) {
-            TextChannel channel = api.getTextChannelById(id);
+    public static TextChannel getTextChannel(long id) {
+        if (id != 0) {
+            TextChannel channel = guild.getTextChannelById(id);
             if (channel != null) {
-                Bukkit.getConsoleSender().sendMessage("Found channel: " + channel.getName());
+                Bukkit.getConsoleSender().sendMessage("Found text channel: " + channel.getName());
                 return channel;
             }
-            Bukkit.getConsoleSender().sendMessage("Could not find channel with ID: " + id);
+            Bukkit.getConsoleSender().sendMessage("Could not find text channel with ID: " + id);
         }
         return null;
     }
 
-    public static Category getCategory(String id) {
-        if (id != null) {
-            Category category = api.getCategoryById(id);
+    public static VoiceChannel getVoiceChannel(long id) {
+        if (id != 0) {
+            VoiceChannel channel = guild.getVoiceChannelById(id);
+            if (channel != null) {
+                Bukkit.getConsoleSender().sendMessage("Found voice channel: " + channel.getName());
+                return channel;
+            }
+            Bukkit.getConsoleSender().sendMessage("Could not find voice channel with ID: " + id);
+        }
+        return null;
+    }
+
+    public static Category getCategory(long id) {
+        if (id != 0) {
+            Category category = guild.getCategoryById(id);
             if (category != null) {
                 Bukkit.getConsoleSender().sendMessage("Found category: " + category.getName());
                 return category;
@@ -120,10 +143,34 @@ public class DiscordManager {
         return null;
     }
 
-    public static User getUser(String discordUsername) {
+    public static Guild getGuildById(long id) {
+        if (id != 0) {
+            Guild guild = api.getGuildById(id);
+            if (guild != null) {
+                Bukkit.getConsoleSender().sendMessage("Found guild: " + guild.getName());
+                return guild;
+            }
+            Bukkit.getConsoleSender().sendMessage("Could not find guild with ID: " + id);
+        }
+        return null;
+    }
+
+    public static Role getRole(long id) {
+        if (id != 0) {
+            Role role = guild.getRoleById(id);
+            if (role != null) {
+                Bukkit.getConsoleSender().sendMessage("Found role: " + role.getName());
+                return role;
+            }
+            Bukkit.getConsoleSender().sendMessage("Could not find role with ID: " + id);
+        }
+        return null;
+    }
+
+    @Nullable
+    public static User getUser(@Nonnull String discordUsername) {
         List<User> users = api.getUsersByName(discordUsername, false);
 
-        Bukkit.getConsoleSender().sendMessage(String.valueOf(users.size()));
         if (users.size() <= 0) {
             return null;
         }
@@ -150,7 +197,11 @@ public class DiscordManager {
         return teamsCategory;
     }
 
-    public static void sendGlobalMessage(String message) {
+    public static Guild getServer() {
+        return guild;
+    }
+
+    public static void sendGlobalMessage(@Nonnull String message) {
         if (globalChannel != null) {
             globalChannel.sendMessage(message).queue();
         }

@@ -15,11 +15,14 @@ public class PluginMain extends JavaPlugin {
     private boolean enabled = false;
 
     private static ConfigManager configManager;
+    private static PluginMain instance;
 
     private PluginDescriptionFile descriptionFile = getDescription();
 
     @Override
     public void onEnable() {
+        instance = this;
+
         configManager = new ConfigManager(this);
         configManager.setupConfig();
 
@@ -29,6 +32,7 @@ public class PluginMain extends JavaPlugin {
         }
 
         Account.loadAccounts(new File(getDataFolder(), "data/accounts.yml"));
+        Team.loadTeams(new File(getDataFolder(), "teams"));
 
         // Register events
         Bukkit.getPluginManager().registerEvents(new PlayerEventsListener(), this);
@@ -38,7 +42,7 @@ public class PluginMain extends JavaPlugin {
         // Register commands
         TeamCommand command = new TeamCommand();
         Bukkit.getPluginCommand("team").setExecutor(command);
-        Bukkit.getPluginCommand("team").setTabCompleter(command);
+        // Bukkit.getPluginCommand("team").setTabCompleter(command);
 
         // Plugin enabled
 
@@ -54,19 +58,16 @@ public class PluginMain extends JavaPlugin {
     public void onDisable() {
         if (!enabled)
             return;
+        notifyStop();
 
         DiscordManager.shutdown();
-        Account.saveAccounts();
 
-        notifyStop();
+        Account.saveAccounts();
+        Team.saveTeams();
+
         Bukkit.getConsoleSender()
                 .sendMessage(descriptionFile.getName() + " v" + descriptionFile.getVersion() + " has been disabled!");
         enabled = false;
-    }
-
-    @Override
-    public void onLoad() {
-
     }
 
     private void notifyStart() {
@@ -89,6 +90,10 @@ public class PluginMain extends JavaPlugin {
 
     public static FileConfiguration getConfiguration() {
         return configManager.getConfig();
+    }
+
+    public static PluginMain getInstance() {
+        return instance;
     }
 
 }

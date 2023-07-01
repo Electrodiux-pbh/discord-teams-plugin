@@ -41,7 +41,10 @@ public class PlayerEventsListener implements Listener {
     @EventHandler
     private void onPlayerDied(PlayerDeathEvent event) {
         if (playerDeathMessages) {
-            DiscordManager.sendGlobalMessage(event.getDeathMessage());
+            String deathMessage = event.getDeathMessage();
+            if (deathMessage != null) {
+                DiscordManager.sendGlobalMessage(deathMessage);
+            }
         }
     }
 
@@ -52,6 +55,8 @@ public class PlayerEventsListener implements Listener {
             // Messages.getMessage("player.advancement-gained", "%player%",
             // event.getPlayer().getName())
             // .replace("%advancement%", event.getAdvancement().getKey().getKey()));
+
+            // Need to get
         }
     }
 

@@ -16,6 +16,7 @@ public class MinecraftChatListener implements Listener {
     }
 
     @EventHandler
+    @SuppressWarnings("null")
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         String messageToSend = messageFormat.replace("%username%", event.getPlayer().getName())
                 .replace("%message%", event.getMessage());

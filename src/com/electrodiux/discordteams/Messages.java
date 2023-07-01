@@ -1,23 +1,38 @@
 package com.electrodiux.discordteams;
 
-import net.md_5.bungee.api.ChatColor;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import org.bukkit.ChatColor;
 
 public class Messages {
 
-    public static String getMessage(String key) {
-        return PluginMain.getConfiguration().getString("messages.en." + key, key);
+    @Nonnull
+    public static String getRawMessage(@Nonnull String key) {
+        String msg = PluginMain.getConfiguration().getString("messages.en." + key);
+        if (msg == null)
+            return key;
+        return msg;
     }
 
-    public static String getMessage(String key, String varName, String varValue) {
-        return getMessage(key).replace(varName, varValue);
+    @Nonnull
+    @SuppressWarnings("null")
+    public static String getRawMessage(@Nonnull String key, @Nonnull String varName, @Nullable String varValue) {
+        return getMessage(key).replace(varName, String.valueOf(varValue));
     }
 
-    public static String getMessageWithColorCodes(String key) {
-        return ChatColor.translateAlternateColorCodes('&', getMessage(key));
+    @Nonnull
+    @SuppressWarnings("null")
+    public static String getMessage(@Nonnull String key) {
+        return ChatColor.translateAlternateColorCodes('&', getRawMessage(key));
     }
 
-    public static String getMessageWithColorCodes(String key, String varName, String varValue) {
-        return getMessageWithColorCodes(key).replace(varName, varValue);
+    @Nonnull
+    @SuppressWarnings("null")
+    public static String getMessage(@Nonnull String key, @Nonnull String varName,
+            @Nullable String varValue) {
+        return ChatColor.translateAlternateColorCodes('&',
+                getRawMessage(key).replace(varName, String.valueOf(varValue)));
     }
 
 }

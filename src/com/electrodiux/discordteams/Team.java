@@ -393,6 +393,11 @@ public class Team {
                     Team team = new Team();
                     team.loadTeamFromConfig(config);
 
+                    if (team.players.isEmpty()) {
+                        team.delete();
+                        continue;
+                    }
+
                     teams.add(team);
                 }
             }

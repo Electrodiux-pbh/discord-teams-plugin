@@ -41,7 +41,7 @@ public class Team {
 
     private ChatColor color;
 
-    private List<Player> players;
+    private List<Player> members;
 
     private boolean open;
     private boolean pvp;
@@ -53,7 +53,7 @@ public class Team {
 
     // empty constructor for loading the configuration
     private Team() {
-        this.players = new ArrayList<>();
+        this.members = new ArrayList<>();
     }
 
     private Team(UUID uuid, String name, String tag) {
@@ -98,12 +98,12 @@ public class Team {
         saveTeam();
     }
 
-    public List<Player> getPlayers() {
-        return players;
+    public List<Player> getMembers() {
+        return members;
     }
 
     public void addPlayer(@Nonnull Player player) {
-        this.players.add(player);
+        this.members.add(player);
 
         syncAccount(player);
 
@@ -111,11 +111,11 @@ public class Team {
     }
 
     public void removePlayer(@Nonnull Player player) {
-        this.players.remove(player);
+        this.members.remove(player);
 
         syncAccount(player);
 
-        if (this.players.size() <= 0) {
+        if (this.members.size() <= 0) {
             delete();
             return;
         }
@@ -170,7 +170,7 @@ public class Team {
     }
 
     public void sendMinecraftMessage(@Nonnull String message) {
-        for (Player player : players) {
+        for (Player player : members) {
             player.sendMessage(message);
         }
     }
@@ -217,7 +217,7 @@ public class Team {
     }
 
     public boolean containsPlayer(Player player) {
-        return players.contains(player);
+        return members.contains(player);
     }
 
     public void saveTeam() {
@@ -253,9 +253,9 @@ public class Team {
         config.set("open", open);
         config.set("pvp", pvp);
 
-        String[] playerUUIDs = new String[players.size()];
+        String[] playerUUIDs = new String[members.size()];
         int i = 0;
-        for (Player player : players) {
+        for (Player player : members) {
             playerUUIDs[i] = player.getUniqueId().toString();
             i++;
         }
@@ -293,7 +293,7 @@ public class Team {
             }
 
             if (player != null) {
-                players.add(player);
+                members.add(player);
                 syncAccount(player);
             }
         }
@@ -332,7 +332,7 @@ public class Team {
     public static Team getPlayerTeam(@Nonnull Player player) {
         Objects.requireNonNull(player);
         for (Team team : teams) {
-            if (team.getPlayers().contains(player)) {
+            if (team.getMembers().contains(player)) {
                 return team;
             }
         }
@@ -393,7 +393,7 @@ public class Team {
                     Team team = new Team();
                     team.loadTeamFromConfig(config);
 
-                    if (team.players.isEmpty()) {
+                    if (team.members.isEmpty()) {
                         team.delete();
                         continue;
                     }

@@ -24,6 +24,7 @@ messages:
     plugin-enabled: "%name% v%version% has been enabled!"
     no-console-command: "Cannot execute this command from the console."
     no-team: "&cYou are not in a team."
+    invalid-color: "Invalid team color"
 
     minecraft-command:
       executed: "The command **/%command%** has been executed."

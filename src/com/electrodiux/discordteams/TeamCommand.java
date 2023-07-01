@@ -23,6 +23,8 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                     return create(sender, args);
                 case "list":
                     return list(sender, args);
+                case "members":
+                    return members(sender, args);
                 case "color":
                     return color(sender, args);
                 case "delete":
@@ -158,22 +160,39 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private boolean members(CommandSender sender, String[] args) {
+        if (sender instanceof Player player) {
+            Team team = Team.getPlayerTeam(player);
+            if (team != null) {
+                StringBuilder sb = new StringBuilder("&aMembers:\n");
+
+                for (Player member : team.getMembers()) {
+                    sb.append("&f- &" + team.getColor().getChar() + member.getName() + "\n");
+                }
+                sender.sendMessage(ChatColor.translateAlternateColorCodes('&', sb.toString()));
+            } else {
+                sender.sendMessage(Messages.getMessage("no-team"));
+            }
+        } else {
+            noConsoleCommand();
+        }
+        return true;
+    }
+
     private boolean color(CommandSender sender, String[] args) {
         if (sender instanceof Player player) {
-            if (args.length > 2) {
-                String colorName = args[2];
-
-                ChatColor color = ChatColor.valueOf(colorName.toUpperCase());
-                if (color != null && color.isColor()) {
-                    String teamName = args[1];
-                    for (Team team : Team.getTeams()) {
-                        if (team.getName().equals(teamName)) {
-                            team.setColor(color);
-                            break;
-                        }
+            if (args.length > 1) {
+                Team team = Team.getPlayerTeam(player);
+                if (team != null) {
+                    String colorName = args[1];
+                    ChatColor color = ChatColor.valueOf(colorName.toUpperCase());
+                    if (color != null && color.isColor()) {
+                        team.setColor(color);
+                    } else {
+                        sender.sendMessage(Messages.getMessage("invalid-color"));
                     }
                 } else {
-                    sender.sendMessage("Invalid color");
+                    sender.sendMessage(Messages.getMessage("no-team"));
                 }
             }
         } else {

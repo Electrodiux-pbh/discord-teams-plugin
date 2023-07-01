@@ -35,6 +35,11 @@ messages:
 
     command:
       no-team-name: "&cYou must specify a team name."
+      no-team-tag: "&cYou must specify a team tag."
+      team-color-changed: "&fThe team color has been changed to %formated_color%&f."
+      team-deleted: "&fThe team %team_color%&l%team% &fhas been deleted."
+      team-name-changed: "&fThe team name has been changed from &7&l%old_name% &fto %team_color%&l%new_name%&f."
+      team-tag-changed: "&fThe team tag has been changed from &7&l%old_tag% &fto %team_color%&l%new_tag%&f."
 
     chat:
       minecraft-format: "&6&l[&9&lDiscord&6&l] &c<%username%> &f%message%"
@@ -46,7 +51,7 @@ messages:
         link-reset: "&fThe verification code for the account &6&l%account% &fhas been reset."
         verfication-code: "&fThe verification code for the account is &6&l%code%&f, please send it to the bot in a private message. You have %timeout% seconds to send the code."
         user-not-found: "&fThe discord user &6&l%account% &fwas not found."
-        link-success: "&fDiscord account &6&l%account% &fhas been linked to your minecraft account."
+        link-success: "&fDiscord account &6&l%account% &fhas been linked to your minecraft account. To unlink it, use the command **/team discordunlink** or just type **unlink** here."
         unlink-success: "&fDiscord account &6&l%account% &fhas been unlinked from your minecraft account."
         no-discord-account: "&fYou have not a linked discord account"
       bot:
@@ -54,6 +59,7 @@ messages:
         invalid-code-format: "The code provided is invalid, please try again."
         link-success: "The minecraft player '%player%' has been linked to your discord account."
         unlink-success: "The minecraft player '%player%' has been unlinked from your discord account."
+        unlink-no-account: "You have not a linked minecraft account"
         code-expired: "The code provided has expired, please create a new one."
         invalid-code: "The code you entered is invalid."
         no-link-code: "You have not generated a code yet, please use the command **/team discordlink <discord-username>** to generate one."
@@ -65,5 +71,3 @@ messages:
     server:
       start: "The server has started."
       stop: "The server has stopped."
-
-    

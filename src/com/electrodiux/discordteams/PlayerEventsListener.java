@@ -23,11 +23,14 @@ public class PlayerEventsListener implements Listener {
     }
 
     @EventHandler
+    @SuppressWarnings("null")
     private void onPlayerJoin(PlayerJoinEvent event) {
         if (connectionMessages) {
             DiscordManager.sendGlobalMessage(
                     Messages.getMessage("player.connected", "%player%", event.getPlayer().getName()));
         }
+
+        Team.updatePlayerDisplayTag(event.getPlayer());
     }
 
     @EventHandler

@@ -101,7 +101,7 @@ public class Account {
         User user = account.getDiscordUser();
 
         player.sendMessage(
-                Messages.getMessage("linking.minecraft.unlink-success", "%account%", user.getEffectiveName()));
+                Messages.getMessage("linking.minecraft.unlink-success", "%account%", user.getName()));
 
         if (user != null) {
             user.openPrivateChannel().queue((channel) -> {

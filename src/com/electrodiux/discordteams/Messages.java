@@ -35,4 +35,23 @@ public class Messages {
                 getRawMessage(key).replace(varName, String.valueOf(varValue)));
     }
 
+    @Nonnull
+    @SuppressWarnings("null")
+    public static String getMessage(@Nonnull String key, @Nonnull String varName1,
+            @Nullable String varValue1, @Nonnull String varName2, @Nullable String varValue2) {
+        return ChatColor.translateAlternateColorCodes('&',
+                getRawMessage(key).replace(varName1, String.valueOf(varValue1)).replace(varName2,
+                        String.valueOf(varValue2)));
+    }
+
+    @Nonnull
+    @SuppressWarnings("null")
+    public static String getMessage(@Nonnull String key, @Nonnull String varName1,
+            @Nullable String varValue1, @Nonnull String varName2, @Nullable String varValue2,
+            @Nonnull String varName3, @Nullable String varValue3) {
+        return ChatColor.translateAlternateColorCodes('&',
+                getRawMessage(key).replace(varName1, String.valueOf(varValue1)).replace(varName2,
+                        String.valueOf(varValue2)).replace(varName3, String.valueOf(varValue3)));
+    }
+
 }

@@ -1,5 +1,7 @@
 package com.electrodiux.discordteams;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.bukkit.Bukkit;
@@ -31,6 +33,8 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                     return delete(sender, args);
                 case "setname":
                     return setname(sender, args);
+                case "settag":
+                    return settag(sender, args);
                 case "reload":
                     PluginMain.getConfigManager().reloadConfig();
                     return true;
@@ -38,6 +42,8 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                     return discordlink(sender, args);
                 case "discordunlink":
                     return discordunlink(sender, args);
+                case "leave":
+                    return leave(sender, args);
             }
         }
 
@@ -46,15 +52,45 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
-        // if (args.length == 0) {
-        // return List.of("create", "reload", "discordlink");
-        // } else {
-        // switch (args[0]) {
-        // case "discordlink":
-        // return List.of("discordusername");
-        // }
-        // }
-        return null;
+        if (args.length == 1) {
+            List<String> completions = new ArrayList<>();
+            completions.add("create");
+            completions.add("list");
+            completions.add("members");
+            completions.add("color");
+            completions.add("delete");
+            completions.add("setname");
+            completions.add("settag");
+            completions.add("reload");
+            completions.add("discordlink");
+            completions.add("discordunlink");
+            completions.add("leave");
+            completions.add("updatedisplay");
+            return completions;
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("color")) {
+            List<String> completions = new ArrayList<>();
+            for (ChatColor color : ChatColor.values()) {
+                if (color.isColor()) {
+                    completions.add(color.name().toLowerCase());
+                }
+            }
+            return completions;
+        }
+        return Collections.emptyList();
+    }
+
+    private boolean leave(CommandSender sender, String[] args) {
+        if (sender instanceof Player player) {
+            Team team = Team.getPlayerTeam(player);
+            if (team != null) {
+                team.removeMember(player);
+            } else {
+                sender.sendMessage(Messages.getMessage("no-team"));
+            }
+        } else {
+            noConsoleCommand();
+        }
+        return true;
     }
 
     private boolean create(CommandSender sender, String[] args) {
@@ -84,6 +120,8 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
             if (team != null) {
                 team.delete();
+                sender.sendMessage(Messages.getMessage("command.team-deleted", "%team%", team.getName(), "%team_color%",
+                        team.getColor().toString()));
             } else {
                 sender.sendMessage(Messages.getMessage("no-team"));
             }
@@ -106,7 +144,38 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             String newName = args[1];
 
             if (team != null) {
+                String oldName = team.getName();
                 team.setName(newName);
+                sender.sendMessage(
+                        Messages.getMessage("command.team-name-changed", "%old_name%", oldName, "%new_name%", newName,
+                                "%team_color%", team.getColor().toString()));
+            } else {
+                sender.sendMessage(Messages.getMessage("no-team"));
+            }
+
+            return true;
+        } else {
+            noConsoleCommand();
+        }
+        return false;
+    }
+
+    private boolean settag(CommandSender sender, String[] args) {
+        if (sender instanceof Player player) {
+            if (args.length < 2) {
+                sender.sendMessage(Messages.getMessage("no-team-tag"));
+                return true;
+            }
+
+            Team team = Team.getPlayerTeam(player);
+            String newTag = args[1];
+
+            if (team != null) {
+                String oldTag = team.getTag();
+                team.setTag(newTag);
+                sender.sendMessage(
+                        Messages.getMessage("command.team-tag-changed", "%old_tag%", oldTag, "%new_tag%", newTag,
+                                "%team_color%", team.getColor().toString()));
             } else {
                 sender.sendMessage(Messages.getMessage("no-team"));
             }
@@ -153,7 +222,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         // TODO Sort in alphabetical order
 
         for (Team team : Team.getTeams()) {
-            sb.append("&f- &" + team.getColor().getChar() + team.getName() + "\n");
+            sb.append("&f- " + team.getColor() + team.getName() + "\n");
         }
         sender.sendMessage(ChatColor.translateAlternateColorCodes('&', sb.toString()));
 
@@ -167,7 +236,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                 StringBuilder sb = new StringBuilder("&aMembers:\n");
 
                 for (Player member : team.getMembers()) {
-                    sb.append("&f- &" + team.getColor().getChar() + member.getName() + "\n");
+                    sb.append("&f- " + member.getName() + "\n");
                 }
                 sender.sendMessage(ChatColor.translateAlternateColorCodes('&', sb.toString()));
             } else {
@@ -185,9 +254,18 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                 Team team = Team.getPlayerTeam(player);
                 if (team != null) {
                     String colorName = args[1];
-                    ChatColor color = ChatColor.valueOf(colorName.toUpperCase());
+                    ChatColor color = null;
+
+                    try {
+                        color = ChatColor.valueOf(colorName.toUpperCase());
+                    } catch (IllegalArgumentException e) {
+                        // Do nothing, color will be null
+                    }
+
                     if (color != null && color.isColor()) {
                         team.setColor(color);
+                        sender.sendMessage(Messages.getMessage("command.team-color-changed", "%formated_color%",
+                                color + color.name().toLowerCase()));
                     } else {
                         sender.sendMessage(Messages.getMessage("invalid-color"));
                     }

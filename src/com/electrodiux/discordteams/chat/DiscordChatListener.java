@@ -113,9 +113,9 @@ public class DiscordChatListener extends ListenerAdapter {
         }.runTask(PluginMain.getInstance());
     }
 
-    private void processPrivateMessage(MessageReceivedEvent event) {
-        // TODO unlink discord command
+    private static final String UNLINK_COMMAND = "unlink";
 
+    private void processPrivateMessage(MessageReceivedEvent event) {
         User author = event.getAuthor();
         Message message = event.getMessage();
 
@@ -123,8 +123,21 @@ public class DiscordChatListener extends ListenerAdapter {
             return;
         }
 
+        String messageString = message.getContentDisplay();
+
+        if (messageString.equalsIgnoreCase(UNLINK_COMMAND)) {
+            Account account = Account.getAccount(author);
+            if (account == null) {
+                event.getChannel().sendMessage(Messages.getMessage("linking.bot.unlink-no-account")).queue();
+                return;
+            }
+
+            Account.unregisterAccount(account);
+            return;
+        }
+
         try {
-            int code = Integer.parseInt(message.getContentDisplay());
+            int code = Integer.parseInt(messageString);
             LinkVerification.checkCode(author.getName(), code, event.getChannel());
         } catch (NumberFormatException e) {
             event.getChannel().sendMessage(Messages.getMessage("linking.bot.invalid-code-format")).queue();

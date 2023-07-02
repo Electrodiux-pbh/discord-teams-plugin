@@ -3,6 +3,7 @@ package com.electrodiux.discordteams.discord;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -19,6 +20,8 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 
 public class LinkVerification {
+
+    private static final int CODE_LENGTH = 6;
 
     private UUID playerId;
     private String playerName;
@@ -55,9 +58,16 @@ public class LinkVerification {
 
     private static Map<UUID, LinkVerification> links = new HashMap<>();
 
+    public static int generateCode() {
+        Random random = new Random();
+        int min = (int) Math.pow(10, CODE_LENGTH - 1);
+        int max = (int) Math.pow(10, CODE_LENGTH) - 1;
+        return random.nextInt(max - min + 1) + min;
+    }
+
     public static LinkVerification createLink(@Nonnull Player player, @Nonnull String discordUsername,
             @Nonnull CommandSender sender) {
-        int code = (int) (Math.random() * 1000000);
+        int code = generateCode();
 
         int timeout = PluginMain.getConfiguration().getInt("discord.account-link.verification-timeout");
         long timeSpan = timeout == -1 ? Integer.MAX_VALUE : System.currentTimeMillis() + timeout * 1000;

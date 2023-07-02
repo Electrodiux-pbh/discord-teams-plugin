@@ -3,9 +3,11 @@ package com.electrodiux.discordteams;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -42,8 +44,26 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                     return discordlink(sender, args);
                 case "discordunlink":
                     return discordunlink(sender, args);
+                case "join":
+                    return join(sender, args);
                 case "leave":
                     return leave(sender, args);
+                case "syncdiscord":
+                    if (sender instanceof Player player) {
+                        Team team = Team.getPlayerTeam(player);
+                        if (team != null) {
+                            Account account = Account.getAccount(player.getUniqueId());
+                            Bukkit.getConsoleSender().sendMessage("Account " + account);
+                            if (account != null) {
+                                team.syncAccount(player.getUniqueId(), account);
+                            }
+                        } else {
+                            sender.sendMessage(Messages.getMessage("no-team"));
+                        }
+                    } else {
+                        noConsoleCommand();
+                    }
+                    return true;
             }
         }
 
@@ -64,6 +84,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             completions.add("reload");
             completions.add("discordlink");
             completions.add("discordunlink");
+            completions.add("join");
             completions.add("leave");
             completions.add("updatedisplay");
             return completions;
@@ -79,11 +100,35 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         return Collections.emptyList();
     }
 
+    private boolean join(CommandSender sender, String[] args) {
+        if (sender instanceof Player player) {
+            if (args.length > 1) {
+                String teamName = args[1];
+                Team team = Team.getTeamByName(Objects.requireNonNull(teamName));
+
+                if (team != null) {
+                    team.addMember(player);
+                    sender.sendMessage(Messages.getMessage("command.team-joined", "%team%", team.getName(),
+                            "%team_color%", team.getColor().toString()));
+                } else {
+                    sender.sendMessage(Messages.getMessage("command.team-not-found", "%team%", teamName));
+                }
+
+                return true;
+            }
+        } else {
+            noConsoleCommand();
+        }
+        return false;
+    }
+
     private boolean leave(CommandSender sender, String[] args) {
         if (sender instanceof Player player) {
             Team team = Team.getPlayerTeam(player);
             if (team != null) {
                 team.removeMember(player);
+                sender.sendMessage(Messages.getMessage("command.team-left", "%team%", team.getName(),
+                        "%team_color%", team.getColor().toString()));
             } else {
                 sender.sendMessage(Messages.getMessage("no-team"));
             }
@@ -120,8 +165,12 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
             if (team != null) {
                 team.delete();
-                sender.sendMessage(Messages.getMessage("command.team-deleted", "%team%", team.getName(), "%team_color%",
-                        team.getColor().toString()));
+                String msg = Messages.getMessage("team.minecraft.deleted", "%team%", team.getName(), "%team_color%",
+                        team.getColor().toString());
+                Messages.sendMessage(player, msg);
+
+                team.sendDiscordMessage(
+                        Messages.getMessage("team.minecraft.deleted", player, "%team%", team.getName()));
             } else {
                 sender.sendMessage(Messages.getMessage("no-team"));
             }
@@ -145,10 +194,12 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
             if (team != null) {
                 String oldName = team.getName();
-                team.setName(newName);
-                sender.sendMessage(
-                        Messages.getMessage("command.team-name-changed", "%old_name%", oldName, "%new_name%", newName,
-                                "%team_color%", team.getColor().toString()));
+                team.setName(newName, player);
+
+                String msg = Messages.getMessage("team.minecraft.name-changed", "%old_name%", oldName, "%new_name%",
+                        newName,
+                        "%team_color%", team.getColor().toString());
+                Messages.sendMessage(player, msg);
             } else {
                 sender.sendMessage(Messages.getMessage("no-team"));
             }
@@ -172,10 +223,11 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
             if (team != null) {
                 String oldTag = team.getTag();
-                team.setTag(newTag);
-                sender.sendMessage(
-                        Messages.getMessage("command.team-tag-changed", "%old_tag%", oldTag, "%new_tag%", newTag,
-                                "%team_color%", team.getColor().toString()));
+                team.setTag(newTag, player);
+
+                String msg = Messages.getMessage("team.minecraft.tag-changed", "%old_tag%", oldTag, "%new_tag%", newTag,
+                        "%team_color%", team.getColor().toString());
+                Messages.sendMessage(player, msg);
             } else {
                 sender.sendMessage(Messages.getMessage("no-team"));
             }
@@ -185,6 +237,39 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             noConsoleCommand();
         }
         return false;
+    }
+
+    private boolean color(CommandSender sender, String[] args) {
+        if (sender instanceof Player player) {
+            if (args.length > 1) {
+                Team team = Team.getPlayerTeam(player);
+                if (team != null) {
+                    String colorName = args[1];
+                    ChatColor color = null;
+
+                    try {
+                        color = ChatColor.valueOf(colorName.toUpperCase());
+                    } catch (IllegalArgumentException e) {
+                        // Do nothing, color will be null
+                    }
+
+                    if (color != null && color.isColor()) {
+                        team.setColor(color, player);
+
+                        String msg = Messages.getMessage("team.minecraft.color-changed", "%formated_color%",
+                                color + color.name().toLowerCase());
+                        Messages.sendMessage(player, msg);
+                    } else {
+                        sender.sendMessage(Messages.getMessage("invalid-color"));
+                    }
+                } else {
+                    sender.sendMessage(Messages.getMessage("no-team"));
+                }
+            }
+        } else {
+            noConsoleCommand();
+        }
+        return true;
     }
 
     private boolean discordlink(CommandSender sender, String[] args) {
@@ -235,43 +320,12 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             if (team != null) {
                 StringBuilder sb = new StringBuilder("&aMembers:\n");
 
-                for (Player member : team.getMembers()) {
+                for (OfflinePlayer member : team.getMembers()) {
                     sb.append("&f- " + member.getName() + "\n");
                 }
                 sender.sendMessage(ChatColor.translateAlternateColorCodes('&', sb.toString()));
             } else {
                 sender.sendMessage(Messages.getMessage("no-team"));
-            }
-        } else {
-            noConsoleCommand();
-        }
-        return true;
-    }
-
-    private boolean color(CommandSender sender, String[] args) {
-        if (sender instanceof Player player) {
-            if (args.length > 1) {
-                Team team = Team.getPlayerTeam(player);
-                if (team != null) {
-                    String colorName = args[1];
-                    ChatColor color = null;
-
-                    try {
-                        color = ChatColor.valueOf(colorName.toUpperCase());
-                    } catch (IllegalArgumentException e) {
-                        // Do nothing, color will be null
-                    }
-
-                    if (color != null && color.isColor()) {
-                        team.setColor(color);
-                        sender.sendMessage(Messages.getMessage("command.team-color-changed", "%formated_color%",
-                                color + color.name().toLowerCase()));
-                    } else {
-                        sender.sendMessage(Messages.getMessage("invalid-color"));
-                    }
-                } else {
-                    sender.sendMessage(Messages.getMessage("no-team"));
-                }
             }
         } else {
             noConsoleCommand();

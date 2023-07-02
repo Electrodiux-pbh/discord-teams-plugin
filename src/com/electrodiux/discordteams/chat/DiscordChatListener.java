@@ -40,12 +40,13 @@ public class DiscordChatListener extends ListenerAdapter {
         }
 
         User author = event.getAuthor();
-        Message message = event.getMessage();
 
         if (!checkMessage(event, author))
             return;
 
-        if (isGlobalMessage(message)) {
+        Message message = event.getMessage();
+
+        if (DiscordManager.isGlobalMessage(message)) {
             String messageToSend = messageEditedFormat
                     .replace("%username%", author.getEffectiveName())
                     .replace("%message%", message.getContentDisplay());
@@ -56,24 +57,27 @@ public class DiscordChatListener extends ListenerAdapter {
 
     @Override
     public void onMessageReceived(@Nonnull MessageReceivedEvent event) {
+        User author = event.getAuthor();
+
+        if (!checkMessage(event, author))
+            return;
+
+        Message message = event.getMessage();
+
+        // check if message is a command
+        if (message.getContentDisplay().startsWith(commandPrefix)) {
+            processCommand(event);
+            return;
+        }
+
+        // check if message is a private message
         if (event.getChannelType() == ChannelType.PRIVATE) {
             processPrivateMessage(event);
             return;
         }
 
-        User author = event.getAuthor();
-        Message message = event.getMessage();
-
-        if (!checkMessage(event, author))
-            return;
-
-        if (isGlobalMessage(message)) {
-            // check if message is a command
-            if (message.getContentDisplay().startsWith(commandPrefix)) {
-                processCommand(event);
-                return;
-            }
-
+        // check if message is a global message
+        if (DiscordManager.isGlobalMessage(message)) {
             // normal message broadcast
             String messageToSend = messageFormat
                     .replace("%username%", author.getEffectiveName())
@@ -107,7 +111,7 @@ public class DiscordChatListener extends ListenerAdapter {
                     Bukkit.dispatchCommand(account.getPlayer(), command);
                 } catch (CommandException e) {
                     e.printStackTrace();
-                    channel.sendMessage(Messages.getMessage("minecraft-command.error")).queue();
+                    channel.sendMessage(Messages.getMessage("discord-command-execution.error")).queue();
                 }
             }
         }.runTask(PluginMain.getInstance());
@@ -118,10 +122,6 @@ public class DiscordChatListener extends ListenerAdapter {
     private void processPrivateMessage(MessageReceivedEvent event) {
         User author = event.getAuthor();
         Message message = event.getMessage();
-
-        if (author.isBot() || author.isSystem()) {
-            return;
-        }
 
         String messageString = message.getContentDisplay();
 
@@ -146,15 +146,10 @@ public class DiscordChatListener extends ListenerAdapter {
     }
 
     private boolean checkMessage(GenericMessageEvent event, User author) {
-        if (author.isBot() || author.isSystem() || author.getIdLong() == event.getJDA().getSelfUser().getIdLong()
-                || !event.isFromGuild()) {
+        if (author.isBot() || author.isSystem() || author.getIdLong() == event.getJDA().getSelfUser().getIdLong()) {
             return false;
         }
         return true;
-    }
-
-    private boolean isGlobalMessage(Message message) {
-        return message.getChannel().getIdLong() == DiscordManager.getGlobalChannel().getIdLong();
     }
 
 }

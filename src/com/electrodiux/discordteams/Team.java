@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -13,6 +14,8 @@ import javax.annotation.Nullable;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -33,11 +36,13 @@ public class Team {
 
     @Nonnull
     public static final ChatColor DEFAULT_COLOR = ChatColor.WHITE;
+    public static final boolean DEFAULT_PVP = true;
+    public static final boolean DEFAULT_OPEN = false;
 
     private transient boolean isDeleted;
 
     @Nonnull
-    private UUID uuid;
+    private UUID teamUuid;
     @Nonnull
     private String name = "";
     @Nonnull
@@ -47,7 +52,7 @@ public class Team {
     private ChatColor color;
 
     @Nonnull
-    private List<Player> members;
+    private List<OfflinePlayer> members;
 
     private boolean open;
     private boolean pvp;
@@ -62,19 +67,24 @@ public class Team {
     private Team() {
         this.members = new ArrayList<>();
         this.color = DEFAULT_COLOR;
-        uuid = UUID.randomUUID();
+        teamUuid = UUID.randomUUID();
     }
 
     private Team(@Nonnull UUID uuid, @Nonnull String name, @Nonnull String tag) {
         this();
-        this.uuid = uuid;
+        this.teamUuid = uuid;
         this.name = name;
         this.tag = tag;
     }
 
     @Nonnull
-    public UUID getUuid() {
-        return uuid;
+    public UUID getTeamUuid() {
+        return teamUuid;
+    }
+
+    @Nonnull
+    private String getByMessage(@Nullable CommandSender changer) {
+        return changer != null ? Messages.getMessage("team.discord.by", changer) : "";
     }
 
     @Nonnull
@@ -82,22 +92,30 @@ public class Team {
         return name;
     }
 
-    public void setName(@Nonnull String name) {
-        this.name = name;
+    // TODO Create team changed event to better handling of things
 
-        if (discordRole != null) {
-            discordRole.getManager().setName(name).queue();
+    public void setName(@Nonnull String newName, @Nullable CommandSender changer) {
+        try {
+            String oldName = this.name;
+            this.name = newName;
+
+            sendDiscordMessage(Messages.getMessage("team.discord.name-changed", "%old_name%", oldName,
+                    "%new_name%", newName, "%by%", getByMessage(changer)));
+
+            if (discordRole != null) {
+                discordRole.getManager().setName(newName).queue();
+            }
+
+            if (textChannel != null) {
+                textChannel.getManager().setName(newName).queue();
+            }
+
+            if (voiceChannel != null) {
+                voiceChannel.getManager().setName(newName).queue();
+            }
+        } finally {
+            saveTeam();
         }
-
-        if (textChannel != null) {
-            textChannel.getManager().setName(name).queue();
-        }
-
-        if (voiceChannel != null) {
-            voiceChannel.getManager().setName(name).queue();
-        }
-
-        saveTeam();
     }
 
     @Nonnull
@@ -105,39 +123,105 @@ public class Team {
         return tag;
     }
 
-    public void setTag(@Nonnull String tag) {
-        this.tag = tag;
+    public void setTag(@Nonnull String newTag, @Nullable CommandSender changer) {
+        try {
+            String oldTag = this.tag;
+            this.tag = newTag;
 
-        updateTagDisplayToPlayers();
+            sendDiscordMessage(Messages.getMessage("team.discord.tag-changed", "%old_tag%", oldTag,
+                    "%new_tag%", newTag, "%by%", getByMessage(changer)));
 
-        saveTeam();
+            updateTagDisplayToPlayers();
+        } finally {
+            saveTeam();
+        }
     }
 
-    public List<Player> getMembers() {
+    @Nonnull
+    public ChatColor getColor() {
+        return color;
+    }
+
+    public void setColor(@Nonnull ChatColor newColor, @Nullable CommandSender changer) {
+        try {
+            if (newColor.isColor()) {
+                this.color = newColor;
+            } else {
+                this.color = DEFAULT_COLOR;
+            }
+
+            sendDiscordMessage(Messages.getMessage("team.discord.color-changed",
+                    "%color%", color.name().toLowerCase(), "%by%", getByMessage(changer)));
+
+            updateTagDisplayToPlayers();
+            if (discordRole != null) {
+                discordRole.getManager().setColor(getColorHexadecimal(newColor)).queue();
+            }
+        } finally {
+            saveTeam();
+        }
+    }
+
+    public List<OfflinePlayer> getMembers() {
         return members;
     }
 
+    @SuppressWarnings("null")
     public void addMember(@Nonnull Player player) {
-        this.members.add(player);
+        Objects.requireNonNull(player, "Player cannot be null");
 
-        displayTagToPlayer(player, getColoredTag());
-        syncAccount(player);
+        try {
+            // Sending messages first to prevent player from receiving the message
+            sendMinecraftMessage(Messages.getMessage("team.minecraft.player-joined", "%player%", player.getName()));
+            sendDiscordMessage(Messages.getMessage("team.discord.player-joined", "%player%", player.getName()));
 
-        saveTeam();
+            this.members.add(player);
+
+            Team.displayTagToPlayer(player, getColoredTag());
+            syncAccount(player.getUniqueId());
+        } finally {
+            saveTeam();
+        }
     }
 
-    public void removeMember(@Nonnull Player player) {
-        this.members.remove(player);
+    @SuppressWarnings("null")
+    public void removeMember(@Nonnull OfflinePlayer offlinePlayer) {
+        Objects.requireNonNull(offlinePlayer, "Player cannot be null");
 
-        Team.displayTagToPlayer(player, null);
-        syncAccount(player);
+        try {
+            boolean removed = false;
+            for (Iterator<OfflinePlayer> i = members.iterator(); i.hasNext();) {
+                OfflinePlayer member = i.next();
+                if (member.getUniqueId().equals(offlinePlayer.getUniqueId())) {
+                    i.remove();
+                    removed = true;
+                    break;
+                }
+            }
 
-        if (this.members.size() <= 0) {
-            delete();
-            return;
+            if (!removed) {
+                return;
+            }
+
+            // Sending messages after removing player for preventing receiving the message
+            // and check if the player really was removed
+            sendMinecraftMessage(
+                    Messages.getMessage("team.minecraft.player-left", "%player%", offlinePlayer.getName()));
+            sendDiscordMessage(Messages.getMessage("team.discord.player-left", "%player%", offlinePlayer.getName()));
+
+            Player player = offlinePlayer.getPlayer();
+            if (player != null) {
+                Team.displayTagToPlayer(player, null);
+            }
+            syncAccount(offlinePlayer.getUniqueId());
+
+            if (this.members.size() <= 0) {
+                delete();
+                return;
+            }
+        } finally {
+            saveTeam();
         }
-
-        saveTeam();
     }
 
     public boolean isOpen() {
@@ -158,26 +242,6 @@ public class Team {
         saveTeam();
     }
 
-    @Nonnull
-    public ChatColor getColor() {
-        return color;
-    }
-
-    public void setColor(@Nonnull ChatColor color) {
-        if (color.isColor()) {
-            this.color = color;
-        } else {
-            this.color = DEFAULT_COLOR;
-        }
-
-        updateTagDisplayToPlayers();
-        if (discordRole != null) {
-            discordRole.getManager().setColor(getColorValue(color)).queue();
-        }
-
-        saveTeam();
-    }
-
     public TextChannel getTextChannel() {
         return textChannel;
     }
@@ -193,8 +257,13 @@ public class Team {
     }
 
     public void sendMinecraftMessage(@Nonnull String message) {
-        for (Player player : members) {
-            player.sendMessage(message);
+        for (OfflinePlayer offlinePlayer : members) {
+            if (offlinePlayer.isOnline()) {
+                Player player = offlinePlayer.getPlayer();
+                if (player != null) {
+                    player.sendMessage(message);
+                }
+            }
         }
     }
 
@@ -205,38 +274,41 @@ public class Team {
     }
 
     public static void syncAccount(@Nonnull Account account) {
-        Player player = account.getPlayer();
-        if (player == null) {
-            return;
-        }
+        UUID playerUuid = account.getPlayerUniqueId();
 
-        Team team = getPlayerTeam(player);
+        Team team = getPlayerTeam(playerUuid);
         if (team != null) {
-            team.syncAccount(player, account);
+            team.syncAccount(playerUuid, account);
         }
     }
 
-    private void syncAccount(@Nonnull Player player) {
-        Bukkit.getConsoleSender().sendMessage("Syncing account for " + player.getName());
-        Account account = Account.getAccount(player);
+    private void syncAccount(@Nonnull UUID playerUuid) {
+        Account account = Account.getAccount(playerUuid);
         if (account != null) {
-            syncAccount(player, account);
+            syncAccount(playerUuid, account);
         }
     }
 
     @SuppressWarnings("null")
-    private void syncAccount(@Nonnull Player player, @Nonnull Account account) {
+    public void syncAccount(@Nonnull UUID playerUuid, @Nonnull Account account) {
         User discordUser = account.getDiscordUser();
-        Bukkit.getConsoleSender().sendMessage("Discord user " + discordUser);
+
+        Bukkit.getConsoleSender().sendMessage("Discord user: " + discordUser);
+
         if (discordUser == null) {
             return;
         }
 
+        Bukkit.getConsoleSender().sendMessage("Role: " + discordRole);
+
         if (discordRole != null) {
-            if (containsPlayer(player)) {
+            if (containsPlayer(playerUuid)) {
+                Bukkit.getConsoleSender().sendMessage("Adding role to " + discordUser.getName());
                 DiscordManager.getServer().addRoleToMember(discordUser, discordRole).queue();
             } else {
-                DiscordManager.getServer().removeRoleFromMember(discordUser, discordRole).queue();
+                Bukkit.getConsoleSender().sendMessage("Removing role from " + discordUser.getName());
+                DiscordManager.getServer().removeRoleFromMember(discordUser,
+                        discordRole).queue();
             }
         }
     }
@@ -254,10 +326,13 @@ public class Team {
         displayTagToPlayers(members, getColoredTag());
     }
 
-    private static void displayTagToPlayers(@Nonnull List<Player> players, @Nullable String tag) {
-        for (Player player : players) {
-            if (player != null) {
-                displayTagToPlayer(player, tag);
+    private static void displayTagToPlayers(@Nonnull List<OfflinePlayer> players, @Nullable String tag) {
+        for (OfflinePlayer offlinePlayer : players) {
+            if (offlinePlayer.isOnline()) {
+                Player player = offlinePlayer.getPlayer();
+                if (player != null) {
+                    displayTagToPlayer(player, tag);
+                }
             }
         }
     }
@@ -272,7 +347,16 @@ public class Team {
     }
 
     public boolean containsPlayer(Player player) {
-        return members.contains(player);
+        return containsPlayer(player.getUniqueId());
+    }
+
+    public boolean containsPlayer(UUID playerUuid) {
+        for (OfflinePlayer offlinePlayer : members) {
+            if (offlinePlayer.getUniqueId().equals(playerUuid)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void saveTeam() {
@@ -288,7 +372,7 @@ public class Team {
         saveTeamToConfig(config);
 
         try {
-            File teamFile = new File(teamsFolder, uuid.toString() + ".yml");
+            File teamFile = new File(teamsFolder, teamUuid.toString() + ".yml");
             if (!teamFile.exists()) {
                 teamFile.createNewFile();
             }
@@ -299,7 +383,7 @@ public class Team {
     }
 
     private void saveTeamToConfig(YamlConfiguration config) {
-        config.set("uuid", uuid.toString());
+        config.set("uuid", teamUuid.toString());
         config.set("name", name);
         config.set("tag", tag);
 
@@ -310,8 +394,8 @@ public class Team {
 
         String[] playerUUIDs = new String[members.size()];
         int i = 0;
-        for (Player player : members) {
-            playerUUIDs[i] = player.getUniqueId().toString();
+        for (OfflinePlayer offlinePlayer : members) {
+            playerUUIDs[i] = offlinePlayer.getUniqueId().toString();
             i++;
         }
 
@@ -324,16 +408,19 @@ public class Team {
 
     @SuppressWarnings("null")
     private void loadTeamFromConfig(YamlConfiguration config) {
+        // ----CORE PROPERTIES----
         String uuidString = config.getString("uuid");
-        String name = config.getString("name");
-        String tag = config.getString("tag");
         Objects.requireNonNull(uuidString, "Team UUID cannot be null");
-        Objects.requireNonNull(name, "Team name cannot be null");
-        Objects.requireNonNull(tag, "Team tag cannot be null");
+        this.teamUuid = UUID.fromString(uuidString);
 
-        this.uuid = UUID.fromString(uuidString);
+        String name = config.getString("name");
+        Objects.requireNonNull(name, "Team name cannot be null");
         this.name = name;
+
+        String tag = config.getString("tag");
+        Objects.requireNonNull(tag, "Team tag cannot be null");
         this.tag = tag;
+        // ------------------------
 
         String colorCode = config.getString("color-code");
         if (colorCode != null) {
@@ -343,23 +430,20 @@ public class Team {
             this.color = DEFAULT_COLOR;
         }
 
-        this.open = config.getBoolean("open");
-        this.pvp = config.getBoolean("pvp");
+        this.open = config.getBoolean("open", DEFAULT_OPEN);
+        this.pvp = config.getBoolean("pvp", DEFAULT_PVP);
 
+        // ----PLAYERS----
         List<String> playerUUIDs = config.getStringList("players");
-
         for (String playerUUID : playerUUIDs) {
-            Player player = null;
-
             if (playerUUID != null) {
-                player = Bukkit.getPlayer(UUID.fromString(playerUUID));
-            }
+                OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(UUID.fromString(playerUUID));
 
-            if (player != null) {
-                members.add(player);
-                syncAccount(player);
+                members.add(offlinePlayer);
+                syncAccount(offlinePlayer.getUniqueId());
             }
         }
+        // ---------------
 
         textChannel = DiscordManager.getTextChannel(config.getLong("text-channel", 0));
         voiceChannel = DiscordManager.getVoiceChannel(config.getLong("voice-channel", 0));
@@ -386,7 +470,7 @@ public class Team {
         }
 
         if (teamsFolder != null) {
-            File teamFile = new File(teamsFolder, uuid.toString() + ".yml");
+            File teamFile = new File(teamsFolder, teamUuid.toString() + ".yml");
             if (teamFile.exists()) {
                 teamFile.delete();
             }
@@ -397,10 +481,18 @@ public class Team {
 
     @Nullable
     public static Team getPlayerTeam(@Nonnull Player player) {
-        Objects.requireNonNull(player);
+        Objects.requireNonNull(player, "Player cannot be null");
+
+        return getPlayerTeam(player.getUniqueId());
+    }
+
+    @Nullable
+    public static Team getPlayerTeam(@Nonnull UUID uuid) {
+        Objects.requireNonNull(uuid, "UUID cannot be null");
+
         for (Team team : teams) {
-            for (Player member : team.getMembers()) {
-                if (member.getUniqueId().equals(player.getUniqueId())) {
+            for (OfflinePlayer member : team.getMembers()) {
+                if (member.getUniqueId().equals(uuid)) {
                     return team;
                 }
             }
@@ -421,7 +513,7 @@ public class Team {
                 for (File file : teamsFolder.listFiles()) {
                     boolean found = false;
                     for (Team team : teams) {
-                        if (file.getName().equals(team.getUuid().toString() + ".yml")) {
+                        if (file.getName().equals(team.getTeamUuid().toString() + ".yml")) {
                             found = true;
                             break;
                         }
@@ -501,37 +593,44 @@ public class Team {
 
         guild.createRole()
                 .setName(team.getName())
-                .setColor(getColorValue(team.color))
+                .setColor(getColorHexadecimal(team.color))
                 .setMentionable(true)
                 .queue(role -> {
                     if (role == null) {
                         throw new IllegalStateException("Could not create role for team " + team.getName() + "!");
                     }
 
-                    team.discordRole = role;
+                    try {
+                        team.discordRole = role;
 
-                    setChannelPermissions(teamsCategory.createTextChannel(team.getName()), role).queue(textChannel -> {
-                        if (textChannel == null) {
-                            throw new IllegalStateException(
-                                    "Could not create text channel for team " + team.getName() + "!");
+                        for (OfflinePlayer member : team.getMembers()) {
+                            team.syncAccount(member.getUniqueId());
                         }
 
-                        team.textChannel = textChannel;
+                        setChannelPermissions(teamsCategory.createTextChannel(team.getName()), role)
+                                .queue(textChannel -> {
+                                    if (textChannel == null) {
+                                        throw new IllegalStateException(
+                                                "Could not create text channel for team " + team.getName() + "!");
+                                    }
+
+                                    team.textChannel = textChannel;
+                                    team.saveTeam();
+                                });
+
+                        setChannelPermissions(teamsCategory.createVoiceChannel(team.getName()), role)
+                                .queue(voiceChannel -> {
+                                    if (voiceChannel == null) {
+                                        throw new IllegalStateException(
+                                                "Could not create voice channel for team " + team.getName() + "!");
+                                    }
+
+                                    team.voiceChannel = voiceChannel;
+                                    team.saveTeam();
+                                });
+                    } finally {
                         team.saveTeam();
-                    });
-
-                    setChannelPermissions(teamsCategory.createVoiceChannel(team.getName()), role)
-                            .queue(voiceChannel -> {
-                                if (voiceChannel == null) {
-                                    throw new IllegalStateException(
-                                            "Could not create voice channel for team " + team.getName() + "!");
-                                }
-
-                                team.voiceChannel = voiceChannel;
-                                team.saveTeam();
-                            });
-
-                    team.saveTeam();
+                    }
                 });
 
         teams.add(team);
@@ -550,39 +649,39 @@ public class Team {
         return channel;
     }
 
-    private static int getColorValue(ChatColor color) {
-        switch (color.getChar()) {
-            case '0':
+    private static int getColorHexadecimal(ChatColor color) {
+        switch (color) {
+            case BLACK:
                 return 0x010101; // Color with value 0 is means no color, so we use a very dark gray instead
-            case '1':
+            case DARK_BLUE:
                 return 0x0000AA;
-            case '2':
+            case DARK_GREEN:
                 return 0x00AA00;
-            case '3':
+            case DARK_AQUA:
                 return 0x00AAAA;
-            case '4':
+            case DARK_RED:
                 return 0xAA0000;
-            case '5':
+            case DARK_PURPLE:
                 return 0xAA00AA;
-            case '6':
+            case GOLD:
                 return 0xFFAA00;
-            case '7':
+            case GRAY:
                 return 0xAAAAAA;
-            case '8':
+            case DARK_GRAY:
                 return 0x555555;
-            case '9':
+            case BLUE:
                 return 0x5555FF;
-            case 'a':
+            case GREEN:
                 return 0x55FF55;
-            case 'b':
+            case AQUA:
                 return 0x55FFFF;
-            case 'c':
+            case RED:
                 return 0xFF5555;
-            case 'd':
+            case LIGHT_PURPLE:
                 return 0xFF55FF;
-            case 'e':
+            case YELLOW:
                 return 0xFFFF55;
-            case 'f':
+            case WHITE:
                 return 0xFFFFFF;
             default:
                 return 0xFFFFFF;
@@ -591,6 +690,16 @@ public class Team {
 
     public static List<Team> getTeams() {
         return List.copyOf(teams);
+    }
+
+    @Nullable
+    public static Team getTeamByName(@Nonnull String teamName) {
+        for (Team team : teams) {
+            if (team.getName().equalsIgnoreCase(teamName)) {
+                return team;
+            }
+        }
+        return null;
     }
 
 }

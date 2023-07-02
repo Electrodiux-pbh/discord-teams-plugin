@@ -26,7 +26,7 @@ messages:
     no-team: "&cYou are not in a team."
     invalid-color: "Invalid team color"
 
-    minecraft-command:
+    discord-command-execution:
       executed: "The command **/%command%** has been executed."
       not-executed: "The command **/%command%** could not be executed."
       not-found: "The command **/%command%** was not found."
@@ -36,10 +36,9 @@ messages:
     command:
       no-team-name: "&cYou must specify a team name."
       no-team-tag: "&cYou must specify a team tag."
-      team-color-changed: "&fThe team color has been changed to %formated_color%&f."
-      team-deleted: "&fThe team %team_color%&l%team% &fhas been deleted."
-      team-name-changed: "&fThe team name has been changed from &7&l%old_name% &fto %team_color%&l%new_name%&f."
-      team-tag-changed: "&fThe team tag has been changed from &7&l%old_tag% &fto %team_color%&l%new_tag%&f."
+      team-not-found: "&fThe team &7&l%team% &fwas not found."
+      team-joined: "&fYou have joined the team %team_color%&l%team%&f."
+      team-left: "&fYou have left the team %team_color%&l%team%&f."
 
     chat:
       minecraft-format: "&6&l[&9&lDiscord&6&l] &c<%username%> &f%message%"
@@ -51,23 +50,43 @@ messages:
         link-reset: "&fThe verification code for the account &6&l%account% &fhas been reset."
         verfication-code: "&fThe verification code for the account is &6&l%code%&f, please send it to the bot in a private message. You have %timeout% seconds to send the code."
         user-not-found: "&fThe discord user &6&l%account% &fwas not found."
-        link-success: "&fDiscord account &6&l%account% &fhas been linked to your minecraft account. To unlink it, use the command **/team discordunlink** or just type **unlink** here."
-        unlink-success: "&fDiscord account &6&l%account% &fhas been unlinked from your minecraft account."
+        link-success: "&fDiscord account &6&l%account% &fhas been linked to your minecraft account. "
+        unlink-success: "&fDiscord account &6&l%account% &fhas been unlinked from your minecraft account. To unlink it, use the command &l/team discordunlink &for just type &lunlink &fin a discord private message."
         no-discord-account: "&fYou have not a linked discord account"
       bot:
         linking-attempt: "The minecraft player '%player%' is trying to link to this discord account. Please ignore it or send the verification code provided to link."
         invalid-code-format: "The code provided is invalid, please try again."
-        link-success: "The minecraft player '%player%' has been linked to your discord account."
+        link-success: "The minecraft player '%player%' has been linked to your discord account. To unlink it, use the command **/team discordunlink** or just type **unlink** here."
         unlink-success: "The minecraft player '%player%' has been unlinked from your discord account."
         unlink-no-account: "You have not a linked minecraft account"
         code-expired: "The code provided has expired, please create a new one."
         invalid-code: "The code you entered is invalid."
         no-link-code: "You have not generated a code yet, please use the command **/team discordlink <discord-username>** to generate one."
         no-minecraft-account: "You have not a linked minecraft account"
+    
     player:
       connected: "The player **%player%** has connected to the server."
       disconnected: "The player **%player%** has disconnected from the server."
       advancement-gained: "**%player%** has gained the advancement **%advancement%**."
+
+    team:
+      discord:
+        player-joined: "**%player%** has joined the team!"
+        player-left: "**%player%** has left the team."
+
+        by: " by **%player%**" # %by% is replaced with the team.discord.by message if it is present, otherwise it is replaced with an empty string
+        color-changed: "The team color has been changed to **%color%**%by%." 
+        name-changed: "The team name has been changed from **%old_name%** to **%new_name%**%by%."
+        tag-changed: "The team tag has been changed from **%old_tag%** to **%new_tag%**%by%."
+        deleted: "The team **%team%** has been deleted%by%."
+      minecraft:
+        player-joined: "&e%player% has joined the team!"
+        player-left: "&e%player% has left the team."
+        color-changed: "&fThe team color has been changed to %formated_color%&f."
+        name-changed: "&fThe team name has been changed from &7&l%old_name% &fto %team_color%&l%new_name%&f."
+        tag-changed: "&fThe team tag has been changed from &7&l%old_tag% &fto %team_color%&l%new_tag%&f."
+        deleted: "&fThe team %team_color%&l%team% &fhas been deleted."
+
     server:
       start: "The server has started."
       stop: "The server has stopped."

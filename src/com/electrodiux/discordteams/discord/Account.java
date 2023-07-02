@@ -11,6 +11,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -29,6 +30,7 @@ public class Account {
 
     private UUID minecraftPlayerId;
     private transient Player minecraftPlayer;
+    private transient OfflinePlayer offlinePlayer;
 
     // for serialization
     private Account() {
@@ -41,7 +43,7 @@ public class Account {
 
     public User getDiscordUser() {
         if (discordUser == null) {
-            discordUser = DiscordManager.getJDA().getUserById(discordUserId);
+            discordUser = DiscordManager.getUser(discordUserId);
         }
         return discordUser;
     }
@@ -53,11 +55,18 @@ public class Account {
         return minecraftPlayer;
     }
 
+    public OfflinePlayer getOfflinePlayer() {
+        if (offlinePlayer == null) {
+            offlinePlayer = Bukkit.getOfflinePlayer(minecraftPlayerId);
+        }
+        return offlinePlayer;
+    }
+
     public long getDiscordUserId() {
         return discordUserId;
     }
 
-    public UUID getMinecraftPlayerId() {
+    public UUID getPlayerUniqueId() {
         return minecraftPlayerId;
     }
 
@@ -101,7 +110,8 @@ public class Account {
         User user = account.getDiscordUser();
 
         player.sendMessage(
-                Messages.getMessage("linking.minecraft.unlink-success", "%account%", user.getName()));
+                Messages.getMessage("linking.minecraft.unlink-success", "%account%",
+                        user != null ? user.getName() : "*"));
 
         if (user != null) {
             user.openPrivateChannel().queue((channel) -> {
@@ -124,8 +134,8 @@ public class Account {
     }
 
     @Nullable
-    public static Account getAccount(@NotNull Player player) {
-        return getAccountByMinecraftId(player.getUniqueId());
+    public static Account getAccount(@NotNull UUID playerUuid) {
+        return getAccountByMinecraftId(playerUuid);
     }
 
     @Nullable
@@ -140,7 +150,13 @@ public class Account {
 
     @Nullable
     public static Account getAccount(@NotNull User user) {
-        return geAccountByDiscordId(user.getIdLong());
+        Account account = geAccountByDiscordId(user.getIdLong());
+        if (account == null) {
+            return null;
+        }
+
+        account.discordUser = user;
+        return account;
     }
 
     public static void saveAccounts() {

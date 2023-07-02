@@ -16,6 +16,8 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Activity.ActivityType;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
@@ -85,6 +87,9 @@ public class DiscordManager {
 
     private static void configureMemoryUsage(JDABuilder builder) {
         builder.disableCache(CacheFlag.ACTIVITY);
+
+        builder.enableIntents(GatewayIntent.GUILD_MEMBERS);
+        builder.enableIntents(GatewayIntent.DIRECT_MESSAGES);
         builder.enableIntents(GatewayIntent.MESSAGE_CONTENT);
     }
 
@@ -172,6 +177,7 @@ public class DiscordManager {
         List<User> users = api.getUsersByName(discordUsername, false);
 
         if (users.size() <= 0) {
+            // guild.getMembersByName(discordUsername, false);
             return null;
         }
 
@@ -181,7 +187,23 @@ public class DiscordManager {
             Bukkit.getConsoleSender().sendMessage("Found user: " + user.getName());
             return user;
         }
-        Bukkit.getConsoleSender().sendMessage("Could not find user with username: " + discordUsername);
+        Bukkit.getConsoleSender().sendMessage("Could not find user with username: " +
+                discordUsername);
+        return null;
+    }
+
+    @Nullable
+    public static User getUser(long id) {
+        User user = api.getUserById(id);
+
+        if (user != null) {
+            Bukkit.getConsoleSender().sendMessage("Found user: " + user.getName());
+            return user;
+        }
+
+        // user = api.retrieveUserById(id).complete();
+
+        Bukkit.getConsoleSender().sendMessage("Could not find user with ID: " + id);
         return null;
     }
 
@@ -205,6 +227,14 @@ public class DiscordManager {
         if (globalChannel != null) {
             globalChannel.sendMessage(message).queue();
         }
+    }
+
+    public static boolean isGlobalMessage(@Nonnull Message message) {
+        return message.getChannel().getIdLong() == globalChannel.getIdLong();
+    }
+
+    public static Member getMember(@Nonnull User user) {
+        return guild.getMember(user);
     }
 
 }

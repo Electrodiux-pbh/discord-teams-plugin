@@ -20,10 +20,9 @@ import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
-import com.electrodiux.discordteams.discord.Account;
+import com.electrodiux.discordteams.discord.LinkedAccount;
 
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
@@ -184,6 +183,45 @@ public class Team {
         }
     }
 
+    public void kickMember(@Nonnull String name, @Nonnull CommandSender kicker) {
+        Objects.requireNonNull(name, "Name cannot be null");
+        Objects.requireNonNull(kicker, "Kicker cannot be null");
+
+        try {
+            OfflinePlayer offlinePlayer = null;
+
+            for (Iterator<OfflinePlayer> i = members.iterator(); i.hasNext();) {
+                OfflinePlayer member = i.next();
+                if (name.equals(String.valueOf(member.getName()))) { // Important, name is not null but member.getName()
+                                                                     // can be, so we do not use
+                                                                     // "member.getName().equals(name)"
+                    i.remove();
+                    offlinePlayer = member;
+                    break;
+                }
+            }
+
+            if (offlinePlayer == null) {
+                kicker.sendMessage(Messages.getMessage("command.player-not-found", "%player%", name));
+                return;
+            }
+
+            // Sending messages after removing player for preventing receiving the message
+            // and check if the player really was removed
+            sendMinecraftMessage(Messages.getMessage("team.minecraft.player-kicked", "%player%", name,
+                    "%kicker%", kicker.getName()));
+            sendDiscordMessage(Messages.getMessage("team.discord.player-kicked", "%player%", name,
+                    "%kicker%", kicker.getName()));
+
+            Player player = offlinePlayer.getPlayer();
+            if (player != null) {
+                Team.displayTagToPlayer(player, null);
+            }
+        } finally {
+            saveTeam();
+        }
+    }
+
     @SuppressWarnings("null")
     public void removeMember(@Nonnull OfflinePlayer offlinePlayer) {
         Objects.requireNonNull(offlinePlayer, "Player cannot be null");
@@ -273,7 +311,7 @@ public class Team {
         sendMinecraftMessage(message);
     }
 
-    public static void syncAccount(@Nonnull Account account) {
+    public static void syncAccount(@Nonnull LinkedAccount account) {
         UUID playerUuid = account.getPlayerUniqueId();
 
         Team team = getPlayerTeam(playerUuid);
@@ -283,14 +321,14 @@ public class Team {
     }
 
     private void syncAccount(@Nonnull UUID playerUuid) {
-        Account account = Account.getAccount(playerUuid);
+        LinkedAccount account = LinkedAccount.getAccount(playerUuid);
         if (account != null) {
             syncAccount(playerUuid, account);
         }
     }
 
     @SuppressWarnings("null")
-    public void syncAccount(@Nonnull UUID playerUuid, @Nonnull Account account) {
+    public void syncAccount(@Nonnull UUID playerUuid, @Nonnull LinkedAccount account) {
         User discordUser = account.getDiscordUser();
 
         Bukkit.getConsoleSender().sendMessage("Discord user: " + discordUser);
@@ -449,8 +487,118 @@ public class Team {
         voiceChannel = DiscordManager.getVoiceChannel(config.getLong("voice-channel", 0));
         discordRole = DiscordManager.getRole(config.getLong("role-id", 0));
 
+        // update discord
+        updateDiscord();
+
         updateTagDisplayToPlayers();
     }
+
+    // #region Discord
+
+    private void updateDiscord() {
+        boolean newRole = false;
+        boolean newTextChannel = false;
+        boolean newVoiceChannel = false;
+
+        if (discordRole != null) {
+            discordRole.getManager().setColor(getColorHexadecimal(getColor())).queue();
+            discordRole.getManager().setName(getName()).queue();
+        } else {
+            createRole();
+            newRole = true;
+        }
+
+        if (textChannel != null) {
+            textChannel.getManager().setName(getName()).queue();
+        } else {
+            createTextChannel();
+            newTextChannel = true;
+        }
+
+        if (voiceChannel != null) {
+            voiceChannel.getManager().setName(getName()).queue();
+        } else {
+            createVoiceChannel();
+            newVoiceChannel = true;
+        }
+
+        if (newRole) {
+            sendDiscordMessage(Messages.getMessage("team.discord.new-role"));
+        }
+
+        if (newTextChannel) {
+            sendDiscordMessage(Messages.getMessage("team.discord.new-text-channel"));
+        }
+
+        if (newVoiceChannel) {
+            sendDiscordMessage(Messages.getMessage("team.discord.new-voice-channel"));
+        }
+
+        saveTeam();
+    }
+
+    private TextChannel createTextChannel() {
+        Category teamsCategory = DiscordManager.getTeamsCategory();
+
+        textChannel = setChannelPermissions(teamsCategory.createTextChannel(getName()), discordRole).complete();
+        if (textChannel == null) {
+            throw new IllegalStateException(
+                    "Could not create text channel for team " + getName() + "!");
+        }
+
+        return textChannel;
+    }
+
+    private VoiceChannel createVoiceChannel() {
+        Category teamsCategory = DiscordManager.getTeamsCategory();
+
+        voiceChannel = setChannelPermissions(teamsCategory.createVoiceChannel(getName()), discordRole).complete();
+        if (voiceChannel == null) {
+            throw new IllegalStateException(
+                    "Could not create voice channel for team " + getName() + "!");
+        }
+
+        return voiceChannel;
+    }
+
+    private static <T extends GuildChannel> ChannelAction<T> setChannelPermissions(@Nonnull ChannelAction<T> channel,
+            @Nullable Role role) {
+
+        channel.addPermissionOverride(DiscordManager.getServer().getPublicRole(), null,
+                EnumSet.of(Permission.VIEW_CHANNEL));
+
+        if (role != null) {
+            channel.addPermissionOverride(role, EnumSet.of(Permission.VIEW_CHANNEL), null);
+        }
+
+        return channel;
+    }
+
+    private Role createRole() {
+        discordRole = DiscordManager.getServer().createRole()
+                .setName(getName())
+                .setColor(getColorHexadecimal(getColor()))
+                .setMentionable(true).complete();
+
+        if (discordRole == null) {
+            throw new IllegalStateException(
+                    "Could not create role for team " + getName() + "!");
+        }
+
+        if (textChannel != null) {
+            textChannel.getManager().putRolePermissionOverride(discordRole.getIdLong(),
+                    EnumSet.of(Permission.VIEW_CHANNEL), null).queue();
+        }
+
+        if (voiceChannel != null) {
+            voiceChannel.getManager().putRolePermissionOverride(discordRole.getIdLong(),
+                    EnumSet.of(Permission.VIEW_CHANNEL), null).queue();
+        }
+
+        return discordRole;
+    }
+
+    // #endregion
 
     public void delete() {
         isDeleted = true;
@@ -588,50 +736,9 @@ public class Team {
         team.open = true;
         team.pvp = true;
 
-        Category teamsCategory = DiscordManager.getTeamsCategory();
-        Guild guild = DiscordManager.getServer();
-
-        guild.createRole()
-                .setName(team.getName())
-                .setColor(getColorHexadecimal(team.color))
-                .setMentionable(true)
-                .queue(role -> {
-                    if (role == null) {
-                        throw new IllegalStateException("Could not create role for team " + team.getName() + "!");
-                    }
-
-                    try {
-                        team.discordRole = role;
-
-                        for (OfflinePlayer member : team.getMembers()) {
-                            team.syncAccount(member.getUniqueId());
-                        }
-
-                        setChannelPermissions(teamsCategory.createTextChannel(team.getName()), role)
-                                .queue(textChannel -> {
-                                    if (textChannel == null) {
-                                        throw new IllegalStateException(
-                                                "Could not create text channel for team " + team.getName() + "!");
-                                    }
-
-                                    team.textChannel = textChannel;
-                                    team.saveTeam();
-                                });
-
-                        setChannelPermissions(teamsCategory.createVoiceChannel(team.getName()), role)
-                                .queue(voiceChannel -> {
-                                    if (voiceChannel == null) {
-                                        throw new IllegalStateException(
-                                                "Could not create voice channel for team " + team.getName() + "!");
-                                    }
-
-                                    team.voiceChannel = voiceChannel;
-                                    team.saveTeam();
-                                });
-                    } finally {
-                        team.saveTeam();
-                    }
-                });
+        team.createRole();
+        team.createTextChannel();
+        team.createVoiceChannel();
 
         teams.add(team);
         team.saveTeam();
@@ -639,53 +746,8 @@ public class Team {
         return team;
     }
 
-    private static <T extends GuildChannel> ChannelAction<T> setChannelPermissions(@Nonnull ChannelAction<T> channel,
-            @Nonnull Role role) {
-
-        channel.addPermissionOverride(DiscordManager.getServer().getPublicRole(), null,
-                EnumSet.of(Permission.VIEW_CHANNEL))
-                .addPermissionOverride(role, EnumSet.of(Permission.VIEW_CHANNEL), null);
-
-        return channel;
-    }
-
     private static int getColorHexadecimal(ChatColor color) {
-        switch (color) {
-            case BLACK:
-                return 0x010101; // Color with value 0 is means no color, so we use a very dark gray instead
-            case DARK_BLUE:
-                return 0x0000AA;
-            case DARK_GREEN:
-                return 0x00AA00;
-            case DARK_AQUA:
-                return 0x00AAAA;
-            case DARK_RED:
-                return 0xAA0000;
-            case DARK_PURPLE:
-                return 0xAA00AA;
-            case GOLD:
-                return 0xFFAA00;
-            case GRAY:
-                return 0xAAAAAA;
-            case DARK_GRAY:
-                return 0x555555;
-            case BLUE:
-                return 0x5555FF;
-            case GREEN:
-                return 0x55FF55;
-            case AQUA:
-                return 0x55FFFF;
-            case RED:
-                return 0xFF5555;
-            case LIGHT_PURPLE:
-                return 0xFF55FF;
-            case YELLOW:
-                return 0xFFFF55;
-            case WHITE:
-                return 0xFFFFFF;
-            default:
-                return 0xFFFFFF;
-        }
+        return PluginMain.getConfiguration().getInt("discord.roles.color." + color.name().toLowerCase(), 0);
     }
 
     public static List<Team> getTeams() {

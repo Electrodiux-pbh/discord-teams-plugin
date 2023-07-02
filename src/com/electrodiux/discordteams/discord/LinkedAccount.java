@@ -23,7 +23,7 @@ import com.electrodiux.discordteams.Team;
 
 import net.dv8tion.jda.api.entities.User;
 
-public class Account {
+public class LinkedAccount {
 
     private long discordUserId;
     private transient User discordUser;
@@ -33,10 +33,10 @@ public class Account {
     private transient OfflinePlayer offlinePlayer;
 
     // for serialization
-    private Account() {
+    private LinkedAccount() {
     }
 
-    private Account(UUID minecraftPlayerId, long discordUserId) {
+    private LinkedAccount(UUID minecraftPlayerId, long discordUserId) {
         this.discordUserId = discordUserId;
         this.minecraftPlayerId = minecraftPlayerId;
     }
@@ -91,18 +91,18 @@ public class Account {
         return minecraftPlayerId.toString() + ";" + discordUserId;
     }
 
-    private static List<Account> accounts = new ArrayList<>();
+    private static List<LinkedAccount> accounts = new ArrayList<>();
     private static File dataFile;
 
     public static void registerAccount(UUID playerId, long userId) {
-        Account account = new Account(playerId, userId);
+        LinkedAccount account = new LinkedAccount(playerId, userId);
         accounts.add(account);
         Team.syncAccount(account);
 
         saveAccounts();
     }
 
-    public static void unregisterAccount(@Nonnull Account account) {
+    public static void unregisterAccount(@Nonnull LinkedAccount account) {
         accounts.remove(account);
         Team.syncAccount(account);
 
@@ -124,8 +124,8 @@ public class Account {
     }
 
     @Nullable
-    public static Account getAccountByMinecraftId(@NotNull UUID minecraftPlayerId) {
-        for (Account account : accounts) {
+    public static LinkedAccount getAccountByMinecraftId(@NotNull UUID minecraftPlayerId) {
+        for (LinkedAccount account : accounts) {
             if (account.minecraftPlayerId.equals(minecraftPlayerId)) {
                 return account;
             }
@@ -134,13 +134,13 @@ public class Account {
     }
 
     @Nullable
-    public static Account getAccount(@NotNull UUID playerUuid) {
+    public static LinkedAccount getAccount(@NotNull UUID playerUuid) {
         return getAccountByMinecraftId(playerUuid);
     }
 
     @Nullable
-    public static Account geAccountByDiscordId(long discordUserId) {
-        for (Account account : accounts) {
+    public static LinkedAccount geAccountByDiscordId(long discordUserId) {
+        for (LinkedAccount account : accounts) {
             if (account.discordUserId == discordUserId) {
                 return account;
             }
@@ -149,8 +149,8 @@ public class Account {
     }
 
     @Nullable
-    public static Account getAccount(@NotNull User user) {
-        Account account = geAccountByDiscordId(user.getIdLong());
+    public static LinkedAccount getAccount(@NotNull User user) {
+        LinkedAccount account = geAccountByDiscordId(user.getIdLong());
         if (account == null) {
             return null;
         }
@@ -183,7 +183,7 @@ public class Account {
 
         try {
             List<String> playerLinks = new ArrayList<>();
-            for (Account account : accounts) {
+            for (LinkedAccount account : accounts) {
                 playerLinks.add(account.toString());
             }
 
@@ -212,7 +212,7 @@ public class Account {
                 List<String> playerLinks = config.getStringList("players");
                 if (playerLinks != null) {
                     for (String linkData : playerLinks) {
-                        Account account = new Account();
+                        LinkedAccount account = new LinkedAccount();
                         account.loadFromString(linkData);
                         accounts.add(account);
                     }

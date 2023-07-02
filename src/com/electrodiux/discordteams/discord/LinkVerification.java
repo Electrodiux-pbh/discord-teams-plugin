@@ -124,7 +124,7 @@ public class LinkVerification {
                     }
                     iterator.remove();
 
-                    Account.registerAccount(link.getPlayerId(), link.getDiscordId());
+                    LinkedAccount.registerAccount(link.getPlayerId(), link.getDiscordId());
 
                     channel.sendMessage(
                             Messages.getMessage("linking.bot.link-success", "%player%", link.getPlayerName())).queue();

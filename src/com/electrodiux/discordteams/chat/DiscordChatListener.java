@@ -9,8 +9,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 import com.electrodiux.discordteams.DiscordManager;
 import com.electrodiux.discordteams.Messages;
 import com.electrodiux.discordteams.PluginMain;
-import com.electrodiux.discordteams.discord.Account;
 import com.electrodiux.discordteams.discord.LinkVerification;
+import com.electrodiux.discordteams.discord.LinkedAccount;
 
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
@@ -93,7 +93,7 @@ public class DiscordChatListener extends ListenerAdapter {
         Message message = event.getMessage();
         MessageChannelUnion channel = event.getChannel();
 
-        Account account = Account.getAccount(author);
+        LinkedAccount account = LinkedAccount.getAccount(author);
         if (account == null) {
             channel.sendMessage(Messages.getMessage("linking.no-linked-account")).queue();
             return;
@@ -126,13 +126,13 @@ public class DiscordChatListener extends ListenerAdapter {
         String messageString = message.getContentDisplay();
 
         if (messageString.equalsIgnoreCase(UNLINK_COMMAND)) {
-            Account account = Account.getAccount(author);
+            LinkedAccount account = LinkedAccount.getAccount(author);
             if (account == null) {
                 event.getChannel().sendMessage(Messages.getMessage("linking.bot.unlink-no-account")).queue();
                 return;
             }
 
-            Account.unregisterAccount(account);
+            LinkedAccount.unregisterAccount(account);
             return;
         }
 

@@ -8,7 +8,7 @@ import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.electrodiux.discordteams.chat.MinecraftChatListener;
-import com.electrodiux.discordteams.discord.Account;
+import com.electrodiux.discordteams.discord.LinkedAccount;
 
 public class PluginMain extends JavaPlugin {
 
@@ -31,7 +31,7 @@ public class PluginMain extends JavaPlugin {
             return;
         }
 
-        Account.loadAccounts(new File(getDataFolder(), "data/accounts.yml"));
+        LinkedAccount.loadAccounts(new File(getDataFolder(), "data/accounts.yml"));
         Team.loadTeams(new File(getDataFolder(), "teams"));
 
         // Register events
@@ -62,7 +62,7 @@ public class PluginMain extends JavaPlugin {
 
         DiscordManager.shutdown();
 
-        Account.saveAccounts();
+        LinkedAccount.saveAccounts();
         Team.saveTeams();
 
         Bukkit.getConsoleSender()

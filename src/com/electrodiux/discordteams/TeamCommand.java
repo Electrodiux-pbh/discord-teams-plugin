@@ -1,7 +1,6 @@
 package com.electrodiux.discordteams;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -14,8 +13,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-import com.electrodiux.discordteams.discord.Account;
 import com.electrodiux.discordteams.discord.LinkVerification;
+import com.electrodiux.discordteams.discord.LinkedAccount;
 
 public class TeamCommand implements CommandExecutor, TabCompleter {
 
@@ -33,8 +32,8 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                     return color(sender, args);
                 case "delete":
                     return delete(sender, args);
-                case "setname":
-                    return setname(sender, args);
+                case "rename":
+                    return rename(sender, args);
                 case "settag":
                     return settag(sender, args);
                 case "reload":
@@ -48,21 +47,10 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                     return join(sender, args);
                 case "leave":
                     return leave(sender, args);
-                case "syncdiscord":
-                    if (sender instanceof Player player) {
-                        Team team = Team.getPlayerTeam(player);
-                        if (team != null) {
-                            Account account = Account.getAccount(player.getUniqueId());
-                            Bukkit.getConsoleSender().sendMessage("Account " + account);
-                            if (account != null) {
-                                team.syncAccount(player.getUniqueId(), account);
-                            }
-                        } else {
-                            sender.sendMessage(Messages.getMessage("no-team"));
-                        }
-                    } else {
-                        noConsoleCommand();
-                    }
+                case "kick":
+                    return kick(sender, args);
+                default:
+                    sender.sendMessage(Messages.getMessage("command.unknown-command", "%command%", args[0]));
                     return true;
             }
         }
@@ -72,32 +60,56 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
-        if (args.length == 1) {
-            List<String> completions = new ArrayList<>();
-            completions.add("create");
-            completions.add("list");
-            completions.add("members");
-            completions.add("color");
-            completions.add("delete");
-            completions.add("setname");
-            completions.add("settag");
-            completions.add("reload");
-            completions.add("discordlink");
-            completions.add("discordunlink");
-            completions.add("join");
-            completions.add("leave");
-            completions.add("updatedisplay");
-            return completions;
-        } else if (args.length == 2 && args[0].equalsIgnoreCase("color")) {
-            List<String> completions = new ArrayList<>();
-            for (ChatColor color : ChatColor.values()) {
-                if (color.isColor()) {
-                    completions.add(color.name().toLowerCase());
+        if (sender instanceof Player player) {
+            if (args.length == 1) {
+                List<String> completions = new ArrayList<>();
+                completions.add("create");
+                completions.add("list");
+                completions.add("members");
+                completions.add("color");
+                completions.add("delete");
+                completions.add("rename");
+                completions.add("settag");
+                completions.add("reload");
+                completions.add("discordlink");
+                completions.add("discordunlink");
+                completions.add("join");
+                completions.add("leave");
+                completions.add("kick");
+                return completions;
+            } else if (args.length == 2) {
+                switch (args[0]) {
+                    case "color":
+                        List<String> completions = new ArrayList<>();
+                        for (ChatColor color : ChatColor.values()) {
+                            if (color.isColor()) {
+                                completions.add(color.name().toLowerCase());
+                            }
+                        }
+                        return completions;
+                    case "join":
+                        List<String> completions2 = new ArrayList<>();
+                        for (Team team : Team.getTeams()) {
+                            completions2.add(team.getName());
+                        }
+                        return completions2;
+                }
+
+                Team team = Team.getPlayerTeam(player);
+                Bukkit.getConsoleSender().sendMessage("Team " + team);
+                if (team != null) {
+                    switch (args[0]) {
+                        case "kick":
+                            List<String> completions = new ArrayList<>();
+                            for (OfflinePlayer member : team.getMembers()) {
+                                completions.add(String.valueOf(member.getName()));
+                            }
+                            return completions;
+                    }
                 }
             }
-            return completions;
         }
-        return Collections.emptyList();
+        return null;
     }
 
     private boolean join(CommandSender sender, String[] args) {
@@ -138,6 +150,24 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private boolean kick(CommandSender sender, String[] args) {
+        if (sender instanceof Player player) {
+            if (args.length > 1) {
+
+                Team team = Team.getPlayerTeam(player);
+                if (team != null) {
+                    String playerName = args[1];
+                    team.kickMember(playerName, player);
+                } else {
+                    sender.sendMessage(Messages.getMessage("no-team"));
+                }
+            }
+        } else {
+            noConsoleCommand();
+        }
+        return true;
+    }
+
     private boolean create(CommandSender sender, String[] args) {
         if (sender instanceof Player player) {
             if (args.length > 1) {
@@ -170,7 +200,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                 Messages.sendMessage(player, msg);
 
                 team.sendDiscordMessage(
-                        Messages.getMessage("team.minecraft.deleted", player, "%team%", team.getName()));
+                        Messages.getMessage("team.discord.deleted", player, "%team%", team.getName()));
             } else {
                 sender.sendMessage(Messages.getMessage("no-team"));
             }
@@ -182,7 +212,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         return false;
     }
 
-    private boolean setname(CommandSender sender, String[] args) {
+    private boolean rename(CommandSender sender, String[] args) {
         if (sender instanceof Player player) {
             if (args.length < 2) {
                 sender.sendMessage(Messages.getMessage("no-team-name"));
@@ -287,9 +317,9 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     private boolean discordunlink(CommandSender sender, String[] args) {
         if (sender instanceof Player player) {
-            Account account = Account.getAccountByMinecraftId(player.getUniqueId());
+            LinkedAccount account = LinkedAccount.getAccountByMinecraftId(player.getUniqueId());
             if (account != null) {
-                Account.unregisterAccount(account);
+                LinkedAccount.unregisterAccount(account);
             } else {
                 sender.sendMessage(Messages.getMessage("linking.minecraft.no-discord-account"));
             }

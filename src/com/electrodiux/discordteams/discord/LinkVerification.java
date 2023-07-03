@@ -13,8 +13,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import com.electrodiux.discordteams.DiscordManager;
+import com.electrodiux.discordteams.DiscordTeams;
 import com.electrodiux.discordteams.Messages;
-import com.electrodiux.discordteams.PluginMain;
 
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
@@ -69,7 +69,7 @@ public class LinkVerification {
             @Nonnull CommandSender sender) {
         int code = generateCode();
 
-        int timeout = PluginMain.getConfiguration().getInt("discord.account-link.verification-timeout");
+        int timeout = DiscordTeams.getConfiguration().getInt("discord.account-link.verification-timeout");
         long timeSpan = timeout == -1 ? Integer.MAX_VALUE : System.currentTimeMillis() + timeout * 1000;
 
         User discordUser = DiscordManager.getUser(discordUsername);

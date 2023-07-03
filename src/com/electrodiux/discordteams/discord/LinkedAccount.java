@@ -19,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
 
 import com.electrodiux.discordteams.DiscordManager;
 import com.electrodiux.discordteams.Messages;
-import com.electrodiux.discordteams.Team;
+import com.electrodiux.discordteams.team.Team;
 
 import net.dv8tion.jda.api.entities.User;
 

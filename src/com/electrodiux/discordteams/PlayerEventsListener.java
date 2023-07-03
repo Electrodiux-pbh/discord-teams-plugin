@@ -7,6 +7,8 @@ import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import com.electrodiux.discordteams.team.Team;
+
 public class PlayerEventsListener implements Listener {
 
     private boolean connectionMessages;
@@ -14,11 +16,11 @@ public class PlayerEventsListener implements Listener {
     private boolean advancementMessages;
 
     public PlayerEventsListener() {
-        connectionMessages = PluginMain.getConfiguration().getBoolean("discord.notifications.connection-messages",
+        connectionMessages = DiscordTeams.getConfiguration().getBoolean("discord.notifications.connection-messages",
                 true);
-        playerDeathMessages = PluginMain.getConfiguration().getBoolean("discord.notifications.player-death-messages",
+        playerDeathMessages = DiscordTeams.getConfiguration().getBoolean("discord.notifications.player-death-messages",
                 true);
-        advancementMessages = PluginMain.getConfiguration().getBoolean("discord.notifications.advancement-messages",
+        advancementMessages = DiscordTeams.getConfiguration().getBoolean("discord.notifications.advancement-messages",
                 true);
     }
 

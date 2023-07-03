@@ -7,8 +7,8 @@ import org.bukkit.command.CommandException;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.electrodiux.discordteams.DiscordManager;
+import com.electrodiux.discordteams.DiscordTeams;
 import com.electrodiux.discordteams.Messages;
-import com.electrodiux.discordteams.PluginMain;
 import com.electrodiux.discordteams.discord.LinkVerification;
 import com.electrodiux.discordteams.discord.LinkedAccount;
 
@@ -30,7 +30,7 @@ public class DiscordChatListener extends ListenerAdapter {
     public DiscordChatListener() {
         messageFormat = Messages.getMessage("chat.minecraft-format");
         messageEditedFormat = Messages.getMessage("chat.minecraft-edited-format");
-        commandPrefix = PluginMain.getConfiguration().getString("discord.bot.minecraft-command-prefix", "!");
+        commandPrefix = DiscordTeams.getConfiguration().getString("discord.bot.minecraft-command-prefix", "!");
     }
 
     @Override
@@ -114,7 +114,7 @@ public class DiscordChatListener extends ListenerAdapter {
                     channel.sendMessage(Messages.getMessage("discord-command-execution.error")).queue();
                 }
             }
-        }.runTask(PluginMain.getInstance());
+        }.runTask(DiscordTeams.getInstance());
     }
 
     private static final String UNLINK_COMMAND = "unlink";

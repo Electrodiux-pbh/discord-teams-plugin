@@ -17,7 +17,7 @@ public class Messages {
 
     @Nonnull
     public static String getRawMessage(@Nonnull String key) {
-        String msg = PluginMain.getConfiguration().getString("messages.en." + key);
+        String msg = DiscordTeams.getConfiguration().getString("messages.en." + key);
         if (msg == null)
             return key;
         return msg;

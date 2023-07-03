@@ -9,13 +9,14 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import com.electrodiux.discordteams.chat.MinecraftChatListener;
 import com.electrodiux.discordteams.discord.LinkedAccount;
+import com.electrodiux.discordteams.team.Team;
 
-public class PluginMain extends JavaPlugin {
+public class DiscordTeams extends JavaPlugin {
 
     private boolean enabled = false;
 
     private static ConfigManager configManager;
-    private static PluginMain instance;
+    private static DiscordTeams instance;
 
     private PluginDescriptionFile descriptionFile = getDescription();
 
@@ -71,14 +72,14 @@ public class PluginMain extends JavaPlugin {
     }
 
     private void notifyStart() {
-        boolean nofifyStart = PluginMain.getConfiguration().getBoolean("discord.notifications.server-start", true);
+        boolean nofifyStart = DiscordTeams.getConfiguration().getBoolean("discord.notifications.server-start", true);
         if (nofifyStart) {
             DiscordManager.sendGlobalMessage(Messages.getMessage("server.start"));
         }
     }
 
     private void notifyStop() {
-        boolean nofifyStop = PluginMain.getConfiguration().getBoolean("discord.notifications.server-stop", true);
+        boolean nofifyStop = DiscordTeams.getConfiguration().getBoolean("discord.notifications.server-stop", true);
         if (nofifyStop) {
             DiscordManager.sendGlobalMessage(Messages.getMessage("server.stop"));
         }
@@ -92,8 +93,12 @@ public class PluginMain extends JavaPlugin {
         return configManager.getConfig();
     }
 
-    public static PluginMain getInstance() {
+    public static DiscordTeams getInstance() {
         return instance;
+    }
+
+    public static void log(String message) {
+        getInstance().getLogger().info(message);
     }
 
 }

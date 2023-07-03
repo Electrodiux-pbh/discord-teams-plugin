@@ -6,7 +6,6 @@ import java.util.Objects;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -15,6 +14,8 @@ import org.bukkit.entity.Player;
 
 import com.electrodiux.discordteams.discord.LinkVerification;
 import com.electrodiux.discordteams.discord.LinkedAccount;
+import com.electrodiux.discordteams.team.Team;
+import com.electrodiux.discordteams.team.TeamMember;
 
 public class TeamCommand implements CommandExecutor, TabCompleter {
 
@@ -37,7 +38,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                 case "settag":
                     return settag(sender, args);
                 case "reload":
-                    PluginMain.getConfigManager().reloadConfig();
+                    DiscordTeams.getConfigManager().reloadConfig();
                     return true;
                 case "discordlink":
                     return discordlink(sender, args);
@@ -101,7 +102,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                     switch (args[0]) {
                         case "kick":
                             List<String> completions = new ArrayList<>();
-                            for (OfflinePlayer member : team.getMembers()) {
+                            for (TeamMember member : team.getMembers()) {
                                 completions.add(String.valueOf(member.getName()));
                             }
                             return completions;
@@ -136,9 +137,10 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     private boolean leave(CommandSender sender, String[] args) {
         if (sender instanceof Player player) {
-            Team team = Team.getPlayerTeam(player);
-            if (team != null) {
-                team.removeMember(player);
+            TeamMember member = Team.getPlayerTeamMember(player);
+            if (member != null) {
+                Team team = member.getTeam();
+                team.removeMember(member);
                 sender.sendMessage(Messages.getMessage("command.team-left", "%team%", team.getName(),
                         "%team_color%", team.getColor().toString()));
             } else {
@@ -350,7 +352,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             if (team != null) {
                 StringBuilder sb = new StringBuilder("&aMembers:\n");
 
-                for (OfflinePlayer member : team.getMembers()) {
+                for (TeamMember member : team.getMembers()) {
                     sb.append("&f- " + member.getName() + "\n");
                 }
                 sender.sendMessage(ChatColor.translateAlternateColorCodes('&', sb.toString()));

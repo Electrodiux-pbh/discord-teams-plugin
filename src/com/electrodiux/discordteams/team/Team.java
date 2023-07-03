@@ -1,4 +1,4 @@
-package com.electrodiux.discordteams;
+package com.electrodiux.discordteams.team;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +20,9 @@ import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
+import com.electrodiux.discordteams.DiscordManager;
+import com.electrodiux.discordteams.DiscordTeams;
+import com.electrodiux.discordteams.Messages;
 import com.electrodiux.discordteams.discord.LinkedAccount;
 
 import net.dv8tion.jda.api.Permission;
@@ -37,6 +40,8 @@ public class Team {
     public static final ChatColor DEFAULT_COLOR = ChatColor.WHITE;
     public static final boolean DEFAULT_PVP = true;
     public static final boolean DEFAULT_OPEN = false;
+    @Nonnull
+    public static final TeamRole DEFAULT_ROLE = TeamRole.MEMBER;
 
     private transient boolean isDeleted;
 
@@ -51,7 +56,7 @@ public class Team {
     private ChatColor color;
 
     @Nonnull
-    private List<OfflinePlayer> members;
+    private List<TeamMember> members;
 
     private boolean open;
     private boolean pvp;
@@ -161,7 +166,7 @@ public class Team {
         }
     }
 
-    public List<OfflinePlayer> getMembers() {
+    public List<TeamMember> getMembers() {
         return members;
     }
 
@@ -174,13 +179,19 @@ public class Team {
             sendMinecraftMessage(Messages.getMessage("team.minecraft.player-joined", "%player%", player.getName()));
             sendDiscordMessage(Messages.getMessage("team.discord.player-joined", "%player%", player.getName()));
 
-            this.members.add(player);
+            TeamMember member = this.createTeamMember(player);
+            this.members.add(member);
 
-            Team.displayTagToPlayer(player, getColoredTag());
+            member.displayTag(getColoredTag());
             syncAccount(player.getUniqueId());
         } finally {
             saveTeam();
         }
+    }
+
+    private TeamMember createTeamMember(@Nonnull OfflinePlayer player) {
+        Objects.requireNonNull(player, "Player cannot be null");
+        return new TeamMember(this, player, DEFAULT_ROLE);
     }
 
     public void kickMember(@Nonnull String name, @Nonnull CommandSender kicker) {
@@ -188,20 +199,21 @@ public class Team {
         Objects.requireNonNull(kicker, "Kicker cannot be null");
 
         try {
-            OfflinePlayer offlinePlayer = null;
+            TeamMember member = null;
 
-            for (Iterator<OfflinePlayer> i = members.iterator(); i.hasNext();) {
-                OfflinePlayer member = i.next();
-                if (name.equals(String.valueOf(member.getName()))) { // Important, name is not null but member.getName()
-                                                                     // can be, so we do not use
-                                                                     // "member.getName().equals(name)"
+            for (Iterator<TeamMember> i = members.iterator(); i.hasNext();) {
+                TeamMember teamMember = i.next();
+                if (name.equals(String.valueOf(teamMember.getName()))) { // Important, name is not null but
+                                                                         // member.getName()
+                    // can be, so we do not use
+                    // "member.getName().equals(name)"
                     i.remove();
-                    offlinePlayer = member;
+                    member = teamMember;
                     break;
                 }
             }
 
-            if (offlinePlayer == null) {
+            if (member == null) {
                 kicker.sendMessage(Messages.getMessage("command.player-not-found", "%player%", name));
                 return;
             }
@@ -213,24 +225,21 @@ public class Team {
             sendDiscordMessage(Messages.getMessage("team.discord.player-kicked", "%player%", name,
                     "%kicker%", kicker.getName()));
 
-            Player player = offlinePlayer.getPlayer();
-            if (player != null) {
-                Team.displayTagToPlayer(player, null);
-            }
+            member.displayTag(null);
         } finally {
             saveTeam();
         }
     }
 
     @SuppressWarnings("null")
-    public void removeMember(@Nonnull OfflinePlayer offlinePlayer) {
-        Objects.requireNonNull(offlinePlayer, "Player cannot be null");
+    public void removeMember(@Nonnull TeamMember member) {
+        Objects.requireNonNull(member, "Player cannot be null");
 
         try {
             boolean removed = false;
-            for (Iterator<OfflinePlayer> i = members.iterator(); i.hasNext();) {
-                OfflinePlayer member = i.next();
-                if (member.getUniqueId().equals(offlinePlayer.getUniqueId())) {
+            for (Iterator<TeamMember> i = members.iterator(); i.hasNext();) {
+                TeamMember teamMember = i.next();
+                if (teamMember.getUniqueId().equals(member.getUniqueId())) {
                     i.remove();
                     removed = true;
                     break;
@@ -244,14 +253,11 @@ public class Team {
             // Sending messages after removing player for preventing receiving the message
             // and check if the player really was removed
             sendMinecraftMessage(
-                    Messages.getMessage("team.minecraft.player-left", "%player%", offlinePlayer.getName()));
-            sendDiscordMessage(Messages.getMessage("team.discord.player-left", "%player%", offlinePlayer.getName()));
+                    Messages.getMessage("team.minecraft.player-left", "%player%", member.getName()));
+            sendDiscordMessage(Messages.getMessage("team.discord.player-left", "%player%", member.getName()));
 
-            Player player = offlinePlayer.getPlayer();
-            if (player != null) {
-                Team.displayTagToPlayer(player, null);
-            }
-            syncAccount(offlinePlayer.getUniqueId());
+            member.displayTag(null);
+            syncAccount(member.getUniqueId());
 
             if (this.members.size() <= 0) {
                 delete();
@@ -295,13 +301,8 @@ public class Team {
     }
 
     public void sendMinecraftMessage(@Nonnull String message) {
-        for (OfflinePlayer offlinePlayer : members) {
-            if (offlinePlayer.isOnline()) {
-                Player player = offlinePlayer.getPlayer();
-                if (player != null) {
-                    player.sendMessage(message);
-                }
-            }
+        for (TeamMember member : members) {
+            member.sendMessage(message);
         }
     }
 
@@ -314,9 +315,9 @@ public class Team {
     public static void syncAccount(@Nonnull LinkedAccount account) {
         UUID playerUuid = account.getPlayerUniqueId();
 
-        Team team = getPlayerTeam(playerUuid);
-        if (team != null) {
-            team.syncAccount(playerUuid, account);
+        TeamMember member = getPlayerTeamMember(playerUuid);
+        if (member != null) {
+            member.getTeam().syncAccount(playerUuid, account);
         }
     }
 
@@ -356,32 +357,21 @@ public class Team {
     }
 
     public static void updatePlayerDisplayTag(@Nonnull Player player) {
-        Team team = getPlayerTeam(player);
-        Team.displayTagToPlayer(player, team != null ? team.getColoredTag() : null);
+        TeamMember member = getPlayerTeamMember(player);
+        if (member != null) {
+            member.displayTag(member.getTeam().getColoredTag());
+        }
+        TeamMember.displayTag(player, null);
     }
 
     public void updateTagDisplayToPlayers() {
         displayTagToPlayers(members, getColoredTag());
     }
 
-    private static void displayTagToPlayers(@Nonnull List<OfflinePlayer> players, @Nullable String tag) {
-        for (OfflinePlayer offlinePlayer : players) {
-            if (offlinePlayer.isOnline()) {
-                Player player = offlinePlayer.getPlayer();
-                if (player != null) {
-                    displayTagToPlayer(player, tag);
-                }
-            }
+    private static void displayTagToPlayers(@Nonnull List<TeamMember> players, @Nullable String tag) {
+        for (TeamMember member : players) {
+            member.displayTag(tag);
         }
-    }
-
-    private static void displayTagToPlayer(@Nonnull Player player, @Nullable String tag) {
-        String display = tag != null
-                ? tag + " \u00A7f" + player.getName()
-                : player.getName();
-
-        player.setPlayerListName(display);
-        player.setDisplayName(display);
     }
 
     public boolean containsPlayer(Player player) {
@@ -389,12 +379,28 @@ public class Team {
     }
 
     public boolean containsPlayer(UUID playerUuid) {
-        for (OfflinePlayer offlinePlayer : members) {
-            if (offlinePlayer.getUniqueId().equals(playerUuid)) {
+        for (TeamMember member : members) {
+            if (member.getUniqueId().equals(playerUuid)) {
                 return true;
             }
         }
         return false;
+    }
+
+    @Nullable
+    @SuppressWarnings("null")
+    public TeamMember getMember(@Nonnull Player player) {
+        return getMember(player.getUniqueId());
+    }
+
+    @Nullable
+    public TeamMember getMember(@Nonnull UUID playerUuid) {
+        for (TeamMember member : members) {
+            if (member.getUniqueId().equals(playerUuid)) {
+                return member;
+            }
+        }
+        return null;
     }
 
     public void saveTeam() {
@@ -430,14 +436,18 @@ public class Team {
         config.set("open", open);
         config.set("pvp", pvp);
 
-        String[] playerUUIDs = new String[members.size()];
+        String[] teamMembers = new String[members.size()];
         int i = 0;
-        for (OfflinePlayer offlinePlayer : members) {
-            playerUUIDs[i] = offlinePlayer.getUniqueId().toString();
+        for (TeamMember member : members) {
+            if (member == null) {
+                continue;
+            }
+
+            teamMembers[i] = TeamMember.serialize(member);
             i++;
         }
 
-        config.set("players", playerUUIDs);
+        config.set("players", teamMembers);
 
         config.set("text-channel", textChannel != null ? textChannel.getIdLong() : null);
         config.set("voice-channel", voiceChannel != null ? voiceChannel.getIdLong() : null);
@@ -472,13 +482,13 @@ public class Team {
         this.pvp = config.getBoolean("pvp", DEFAULT_PVP);
 
         // ----PLAYERS----
-        List<String> playerUUIDs = config.getStringList("players");
-        for (String playerUUID : playerUUIDs) {
-            if (playerUUID != null) {
-                OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(UUID.fromString(playerUUID));
+        List<String> teamMembers = config.getStringList("players");
+        for (String memberString : teamMembers) {
+            if (memberString != null) {
+                TeamMember member = TeamMember.deserialize(this, memberString);
 
-                members.add(offlinePlayer);
-                syncAccount(offlinePlayer.getUniqueId());
+                members.add(member);
+                syncAccount(member.getUniqueId());
             }
         }
         // ---------------
@@ -631,22 +641,36 @@ public class Team {
     public static Team getPlayerTeam(@Nonnull Player player) {
         Objects.requireNonNull(player, "Player cannot be null");
 
-        return getPlayerTeam(player.getUniqueId());
+        TeamMember member = getPlayerTeamMember(player);
+
+        return member != null ? member.getTeam() : null;
     }
 
     @Nullable
-    public static Team getPlayerTeam(@Nonnull UUID uuid) {
+    public static TeamMember getPlayerTeamMember(@Nonnull Player player) {
+        Objects.requireNonNull(player, "Player cannot be null");
+
+        return getPlayerTeamMember(player.getUniqueId());
+    }
+
+    @Nullable
+    public static TeamMember getPlayerTeamMember(@Nonnull UUID uuid) {
         Objects.requireNonNull(uuid, "UUID cannot be null");
 
         for (Team team : teams) {
-            for (OfflinePlayer member : team.getMembers()) {
+            for (TeamMember member : team.getMembers()) {
                 if (member.getUniqueId().equals(uuid)) {
-                    return team;
+                    return member;
                 }
             }
         }
 
         return null;
+    }
+
+    @Override
+    public int hashCode() {
+        return teamUuid.hashCode();
     }
 
     private static List<Team> teams;
@@ -747,7 +771,7 @@ public class Team {
     }
 
     private static int getColorHexadecimal(ChatColor color) {
-        return PluginMain.getConfiguration().getInt("discord.roles.color." + color.name().toLowerCase(), 0);
+        return DiscordTeams.getConfiguration().getInt("discord.colors." + color.name().toLowerCase(), 0);
     }
 
     public static List<Team> getTeams() {

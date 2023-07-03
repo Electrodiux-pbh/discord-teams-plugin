@@ -19,25 +19,53 @@ discord:
     server-start: true # Notify when the server starts
     server-stop: true # Notify when the server stops
   
-  roles:
-    color:
-      # color values were taken from https://htmlcolorcodes.com/minecraft-color-codes/
-      black: 0x010101 # Color with value 0 is means no color, so we use a very dark gray instead
-      dark_blue: 0x0000AA
-      dark_green: 0x00AA00
-      dark_aqua: 0x00AAAA
-      dark_red: 0xAA0000
-      dark_purple: 0xAA00AA
-      gold: 0xFFAA00
-      gray: 0xAAAAAA
-      dark_gray: 0x555555
-      blue: 0x5555FF
-      green: 0x55FF55
-      aqua: 0x55FFFF
-      red: 0xFF5555
-      light_purple: 0xFF55FF
-      yellow: 0xFFFF55
-      white: 0xFFFFFF
+  colors:
+    # color values were taken from https://htmlcolorcodes.com/minecraft-color-codes/
+    black: 0x010101 # Color with value 0 is means no color, so we use a very dark gray instead
+    dark_blue: 0x0000AA
+    dark_green: 0x00AA00
+    dark_aqua: 0x00AAAA
+    dark_red: 0xAA0000
+    dark_purple: 0xAA00AA
+    gold: 0xFFAA00
+    gray: 0xAAAAAA
+    dark_gray: 0x555555
+    blue: 0x5555FF
+    green: 0x55FF55
+    aqua: 0x55FFFF
+    red: 0xFF5555
+    light_purple: 0xFF55FF
+    yellow: 0xFFFF55
+    white: 0xFFFFFF
+
+#modifing the priority of a role might result in unexpected behavior, it is used to determine if some actions like kicking a player are allowed for a player with higher priority
+
+team-roles:
+  owner:
+    all-permissions: true
+    priority: 4
+  admin:
+    all-permissions: false # unnecessary, but it's here for clarity
+    priority: 3
+    permissions:
+      - "set_tag"
+      - "set_color"
+      - "set_name"
+      - "invite"
+      - "kick"
+      - "promote"
+      - "demote"
+    veteran:
+      all-permissions: false
+      priority: 2
+      permissions:
+        - "set_color"
+        - "invite"
+    member:
+      all-permissions: false
+      priority: 1
+      permissions: []
+    
 
 messages:
   en:
@@ -92,6 +120,8 @@ messages:
       advancement-gained: "**%player%** has gained the advancement **%advancement%**."
 
     team:
+      permission:
+        invalid-permission: "&cInvalid team permission &4%permission%&c."
       discord:
         player-joined: "**%player%** has joined the team!"
         player-left: "**%player%** has left the team."

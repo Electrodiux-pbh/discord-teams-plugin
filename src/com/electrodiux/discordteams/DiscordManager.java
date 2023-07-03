@@ -38,7 +38,7 @@ public class DiscordManager {
     public static boolean setup(JavaPlugin plugin) {
         DiscordManager.plugin = plugin;
 
-        String botToken = PluginMain.getConfiguration().getString("discord.bot.token");
+        String botToken = DiscordTeams.getConfiguration().getString("discord.bot.token");
 
         if (botToken == null || botToken.isBlank()) {
             plugin.getLogger().warning("No bot token was found in the config! Please add one and restart the server.");
@@ -48,9 +48,9 @@ public class DiscordManager {
         boolean settedup = setupDiscord(botToken);
 
         if (settedup) {
-            guild = getGuildById(PluginMain.getConfiguration().getLong("discord.server-id", 0));
-            globalChannel = getTextChannel(PluginMain.getConfiguration().getLong("discord.global-channel-id", 0));
-            teamsCategory = getCategory(PluginMain.getConfiguration().getLong("discord.teams-category-id", 0));
+            guild = getGuildById(DiscordTeams.getConfiguration().getLong("discord.server-id", 0));
+            globalChannel = getTextChannel(DiscordTeams.getConfiguration().getLong("discord.global-channel-id", 0));
+            teamsCategory = getCategory(DiscordTeams.getConfiguration().getLong("discord.teams-category-id", 0));
 
             if (globalChannel == null || teamsCategory == null || guild == null) {
                 throw new IllegalStateException(
@@ -94,8 +94,8 @@ public class DiscordManager {
     }
 
     private static void configureActivity(JDABuilder builder) {
-        String activityType = PluginMain.getConfiguration().getString("discord.bot.activity.type");
-        String activityText = PluginMain.getConfiguration().getString("discord.bot.activity.text");
+        String activityType = DiscordTeams.getConfiguration().getString("discord.bot.activity.type");
+        String activityText = DiscordTeams.getConfiguration().getString("discord.bot.activity.text");
 
         if (activityType != null && activityText != null) {
             ActivityType type = ActivityType.valueOf(activityType);

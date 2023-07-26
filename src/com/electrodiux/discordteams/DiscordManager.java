@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
 import javax.security.auth.login.LoginException;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.electrodiux.discordteams.chat.DiscordChatListener;
@@ -235,6 +236,10 @@ public class DiscordManager {
 
     public static Member getMember(@Nonnull User user) {
         return guild.getMember(user);
+    }
+
+    public static int getDiscordColor(ChatColor color) {
+        return DiscordTeams.getConfiguration().getInt("discord.colors." + color.name().toLowerCase(), 0);
     }
 
 }

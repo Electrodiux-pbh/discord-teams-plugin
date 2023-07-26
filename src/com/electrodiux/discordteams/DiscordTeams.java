@@ -9,7 +9,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import com.electrodiux.discordteams.chat.MinecraftChatListener;
 import com.electrodiux.discordteams.discord.LinkedAccount;
-import com.electrodiux.discordteams.team.Team;
+import com.electrodiux.discordteams.team.DiscordTeam;
 
 public class DiscordTeams extends JavaPlugin {
 
@@ -33,7 +33,7 @@ public class DiscordTeams extends JavaPlugin {
         }
 
         LinkedAccount.loadAccounts(new File(getDataFolder(), "data/accounts.yml"));
-        Team.loadTeams(new File(getDataFolder(), "teams"));
+        DiscordTeam.loadTeams(new File(getDataFolder(), "teams"));
 
         // Register events
         Bukkit.getPluginManager().registerEvents(new PlayerEventsListener(), this);
@@ -64,7 +64,7 @@ public class DiscordTeams extends JavaPlugin {
         DiscordManager.shutdown();
 
         LinkedAccount.saveAccounts();
-        Team.saveTeams();
+        DiscordTeam.saveTeams();
 
         Bukkit.getConsoleSender()
                 .sendMessage(descriptionFile.getName() + " v" + descriptionFile.getVersion() + " has been disabled!");

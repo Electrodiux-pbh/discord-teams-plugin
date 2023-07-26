@@ -144,6 +144,7 @@ messages:
         tag-changed: "&fThe team tag has been changed from &7&l%old_tag% &fto %team_color%&l%new_tag%&f."
         deleted: "&fThe team %team_color%&l%team% &fhas been deleted."
         player-kicked: "&f%player% has been kicked from the team."
+        you-being-kicked: "&fYou have been kicked from the team."
 
     server:
       start: "The server has started."

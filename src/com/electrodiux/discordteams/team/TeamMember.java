@@ -10,21 +10,21 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
-public class TeamMember {
+public class TeamMember implements TeamEditor {
 
     @Nonnull
     private TeamRole role;
     @Nonnull
-    private Team team;
+    private DiscordTeam team;
 
     @Nonnull
     private OfflinePlayer player;
 
-    public TeamMember(@Nonnull Team team, @Nonnull OfflinePlayer player) {
-        this(team, player, Team.DEFAULT_ROLE);
+    protected TeamMember(@Nonnull DiscordTeam team, @Nonnull OfflinePlayer player) {
+        this(team, player, DiscordTeam.DEFAULT_ROLE);
     }
 
-    public TeamMember(@Nonnull Team team, @Nonnull UUID playerUniqueId, @Nullable TeamRole role) {
+    protected TeamMember(@Nonnull DiscordTeam team, @Nonnull UUID playerUniqueId, @Nullable TeamRole role) {
         this(team, getOfflinePlayer(playerUniqueId), role);
     }
 
@@ -36,7 +36,7 @@ public class TeamMember {
         return player;
     }
 
-    public TeamMember(@Nonnull Team team, @Nonnull OfflinePlayer player, @Nullable TeamRole role) {
+    protected TeamMember(@Nonnull DiscordTeam team, @Nonnull OfflinePlayer player, @Nullable TeamRole role) {
         Objects.requireNonNull(team, "Team cannot be null!");
         Objects.requireNonNull(player, "Player cannot be null!");
 
@@ -46,7 +46,7 @@ public class TeamMember {
         if (role != null) {
             this.role = role;
         } else {
-            this.role = Team.DEFAULT_ROLE;
+            this.role = DiscordTeam.DEFAULT_ROLE;
         }
     }
 
@@ -55,8 +55,23 @@ public class TeamMember {
         return role;
     }
 
+    public void setRole(@Nonnull TeamRole role) {
+        Objects.requireNonNull(role, "Role cannot be null!");
+        this.role = role;
+    }
+
+    @Override
+    public boolean hasHigherPriorityThan(@Nonnull TeamMember other) {
+        return role.isHigherPriorityThan(other.role);
+    }
+
+    @Override
+    public boolean hasPermission(@Nonnull TeamPermission permission) {
+        return role.hasPermission(permission);
+    }
+
     @Nonnull
-    public Team getTeam() {
+    public DiscordTeam getTeam() {
         return team;
     }
 
@@ -77,11 +92,13 @@ public class TeamMember {
     }
 
     @Nonnull
+    @Override
     public String getName() {
         String name = player.getName();
         return name != null ? name : "(Unknown)";
     }
 
+    @Override
     public void sendMessage(String message) {
         if (isOnline()) {
             Player player = getPlayer();
@@ -91,38 +108,29 @@ public class TeamMember {
         }
     }
 
-    public void displayTag(@Nullable String tag) {
-        if (isOnline()) {
-            Player player = getPlayer();
-            if (player == null)
-                return;
+    // public void displayTag(@Nullable String tag) {
+    // if (isOnline()) {
+    // Player player = getPlayer();
+    // if (player == null)
+    // return;
 
-            displayTag(player, tag);
-        }
-    }
+    // displayTag(player, tag);
+    // }
+    // }
 
-    public static void displayTag(@Nonnull Player player, @Nullable String tag) {
-        Objects.requireNonNull(player, "Player cannot be null!");
+    // public static void displayTag(@Nonnull Player player, @Nullable String tag) {
+    // Objects.requireNonNull(player, "Player cannot be null!");
 
-        String display = tag != null
-                ? tag + " \u00A7f" + player.getName()
-                : player.getName();
+    // String display = tag != null
+    // ? tag + " \u00A7f" + player.getName()
+    // : player.getName();
 
-        player.setPlayerListName(display);
-        player.setDisplayName(display);
-    }
+    // player.setPlayerListName(display);
+    // player.setDisplayName(display);
+    // }
 
     public boolean isOnline() {
         return player.isOnline();
-    }
-
-    public boolean hasPermission(TeamPermission permission) {
-        return role.hasPermission(permission);
-    }
-
-    public void setRole(@Nonnull TeamRole role) {
-        Objects.requireNonNull(role, "Role cannot be null!");
-        this.role = role;
     }
 
     @Override
@@ -131,7 +139,7 @@ public class TeamMember {
     }
 
     @Nullable
-    public static TeamMember deserialize(@Nonnull Team team, @Nonnull String serialized) {
+    public static TeamMember deserialize(@Nonnull DiscordTeam team, @Nonnull String serialized) {
         Objects.requireNonNull(team, "Team cannot be null!");
         Objects.requireNonNull(serialized, "Serialized cannot be null!");
 

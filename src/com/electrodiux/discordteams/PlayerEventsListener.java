@@ -7,8 +7,6 @@ import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import com.electrodiux.discordteams.team.Team;
-
 public class PlayerEventsListener implements Listener {
 
     private boolean connectionMessages;
@@ -25,14 +23,11 @@ public class PlayerEventsListener implements Listener {
     }
 
     @EventHandler
-    @SuppressWarnings("null")
     private void onPlayerJoin(PlayerJoinEvent event) {
         if (connectionMessages) {
             DiscordManager.sendGlobalMessage(
                     Messages.getMessage("player.connected", "%player%", event.getPlayer().getName()));
         }
-
-        Team.updatePlayerDisplayTag(event.getPlayer());
     }
 
     @EventHandler

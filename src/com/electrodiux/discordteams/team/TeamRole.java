@@ -34,6 +34,10 @@ public enum TeamRole {
         return priority;
     }
 
+    public boolean isHigherPriorityThan(TeamRole other) {
+        return this.priority > other.priority;
+    }
+
     public int compare(TeamRole other) {
         return Integer.compare(this.priority, other.priority);
     }

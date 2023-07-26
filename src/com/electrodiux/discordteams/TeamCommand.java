@@ -14,7 +14,7 @@ import org.bukkit.entity.Player;
 
 import com.electrodiux.discordteams.discord.LinkVerification;
 import com.electrodiux.discordteams.discord.LinkedAccount;
-import com.electrodiux.discordteams.team.Team;
+import com.electrodiux.discordteams.team.DiscordTeam;
 import com.electrodiux.discordteams.team.TeamMember;
 
 public class TeamCommand implements CommandExecutor, TabCompleter {
@@ -90,13 +90,13 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                         return completions;
                     case "join":
                         List<String> completions2 = new ArrayList<>();
-                        for (Team team : Team.getTeams()) {
+                        for (DiscordTeam team : DiscordTeam.getTeams()) {
                             completions2.add(team.getName());
                         }
                         return completions2;
                 }
 
-                Team team = Team.getPlayerTeam(player);
+                DiscordTeam team = DiscordTeam.getPlayerTeam(player);
                 Bukkit.getConsoleSender().sendMessage("Team " + team);
                 if (team != null) {
                     switch (args[0]) {
@@ -117,7 +117,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         if (sender instanceof Player player) {
             if (args.length > 1) {
                 String teamName = args[1];
-                Team team = Team.getTeamByName(Objects.requireNonNull(teamName));
+                DiscordTeam team = DiscordTeam.getTeamByName(Objects.requireNonNull(teamName));
 
                 if (team != null) {
                     team.addMember(player);
@@ -137,9 +137,9 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     private boolean leave(CommandSender sender, String[] args) {
         if (sender instanceof Player player) {
-            TeamMember member = Team.getPlayerTeamMember(player);
+            TeamMember member = DiscordTeam.getPlayerTeamMember(player);
             if (member != null) {
-                Team team = member.getTeam();
+                DiscordTeam team = member.getTeam();
                 team.removeMember(member);
                 sender.sendMessage(Messages.getMessage("command.team-left", "%team%", team.getName(),
                         "%team_color%", team.getColor().toString()));
@@ -156,7 +156,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         if (sender instanceof Player player) {
             if (args.length > 1) {
 
-                Team team = Team.getPlayerTeam(player);
+                DiscordTeam team = DiscordTeam.getPlayerTeam(player);
                 if (team != null) {
                     String playerName = args[1];
                     team.kickMember(playerName, player);
@@ -180,7 +180,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                     teamTag = args[2];
                 }
 
-                Team.createNewTeam(player, teamName, teamTag);
+                DiscordTeam.createNewTeam(player, teamName, teamTag);
                 sender.sendMessage(player.getName() + " created a team called " + teamName);
 
                 return true;
@@ -193,7 +193,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     private boolean delete(CommandSender sender, String[] args) {
         if (sender instanceof Player player) {
-            Team team = Team.getPlayerTeam(player);
+            DiscordTeam team = DiscordTeam.getPlayerTeam(player);
 
             if (team != null) {
                 team.delete();
@@ -221,7 +221,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
-            Team team = Team.getPlayerTeam(player);
+            DiscordTeam team = DiscordTeam.getPlayerTeam(player);
             String newName = args[1];
 
             if (team != null) {
@@ -250,7 +250,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
-            Team team = Team.getPlayerTeam(player);
+            DiscordTeam team = DiscordTeam.getPlayerTeam(player);
             String newTag = args[1];
 
             if (team != null) {
@@ -274,7 +274,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
     private boolean color(CommandSender sender, String[] args) {
         if (sender instanceof Player player) {
             if (args.length > 1) {
-                Team team = Team.getPlayerTeam(player);
+                DiscordTeam team = DiscordTeam.getPlayerTeam(player);
                 if (team != null) {
                     String colorName = args[1];
                     ChatColor color = null;
@@ -338,7 +338,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
         // TODO Sort in alphabetical order
 
-        for (Team team : Team.getTeams()) {
+        for (DiscordTeam team : DiscordTeam.getTeams()) {
             sb.append("&f- " + team.getColor() + team.getName() + "\n");
         }
         sender.sendMessage(ChatColor.translateAlternateColorCodes('&', sb.toString()));
@@ -348,7 +348,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     private boolean members(CommandSender sender, String[] args) {
         if (sender instanceof Player player) {
-            Team team = Team.getPlayerTeam(player);
+            DiscordTeam team = DiscordTeam.getPlayerTeam(player);
             if (team != null) {
                 StringBuilder sb = new StringBuilder("&aMembers:\n");
 

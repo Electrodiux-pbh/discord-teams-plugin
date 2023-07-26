@@ -14,14 +14,14 @@ import javax.annotation.Nullable;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 
 import com.electrodiux.discordteams.DiscordManager;
-import com.electrodiux.discordteams.DiscordTeams;
 import com.electrodiux.discordteams.Messages;
 import com.electrodiux.discordteams.discord.LinkedAccount;
 
@@ -34,7 +34,7 @@ import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.requests.restaction.ChannelAction;
 
-public class Team {
+public class DiscordTeam {
 
     @Nonnull
     public static final ChatColor DEFAULT_COLOR = ChatColor.WHITE;
@@ -66,15 +66,17 @@ public class Team {
     private VoiceChannel voiceChannel;
     private Role discordRole;
 
+    private transient Team vanillaTeam;
+
     // empty constructor for loading the configuration
     @SuppressWarnings("null")
-    private Team() {
+    private DiscordTeam() {
         this.members = new ArrayList<>();
         this.color = DEFAULT_COLOR;
         teamUuid = UUID.randomUUID();
     }
 
-    private Team(@Nonnull UUID uuid, @Nonnull String name, @Nonnull String tag) {
+    private DiscordTeam(@Nonnull UUID uuid, @Nonnull String name, @Nonnull String tag) {
         this();
         this.teamUuid = uuid;
         this.name = name;
@@ -103,6 +105,8 @@ public class Team {
             String oldName = this.name;
             this.name = newName;
 
+            getVanillaTeam().setDisplayName(newName);
+
             sendDiscordMessage(Messages.getMessage("team.discord.name-changed", "%old_name%", oldName,
                     "%new_name%", newName, "%by%", getByMessage(changer)));
 
@@ -127,6 +131,11 @@ public class Team {
         return tag;
     }
 
+    @Nonnull
+    public String getPrefix() {
+        return getTag() + " \u00A7f";
+    }
+
     public void setTag(@Nonnull String newTag, @Nullable CommandSender changer) {
         try {
             String oldTag = this.tag;
@@ -134,8 +143,8 @@ public class Team {
 
             sendDiscordMessage(Messages.getMessage("team.discord.tag-changed", "%old_tag%", oldTag,
                     "%new_tag%", newTag, "%by%", getByMessage(changer)));
+            getVanillaTeam().setPrefix(getPrefix());
 
-            updateTagDisplayToPlayers();
         } finally {
             saveTeam();
         }
@@ -156,10 +165,10 @@ public class Team {
 
             sendDiscordMessage(Messages.getMessage("team.discord.color-changed",
                     "%color%", color.name().toLowerCase(), "%by%", getByMessage(changer)));
+            getVanillaTeam().setColor(getColor());
 
-            updateTagDisplayToPlayers();
             if (discordRole != null) {
-                discordRole.getManager().setColor(getColorHexadecimal(newColor)).queue();
+                discordRole.getManager().setColor(DiscordManager.getDiscordColor(newColor)).queue();
             }
         } finally {
             saveTeam();
@@ -171,7 +180,7 @@ public class Team {
     }
 
     @SuppressWarnings("null")
-    public void addMember(@Nonnull Player player) {
+    public TeamMember addMember(@Nonnull Player player) {
         Objects.requireNonNull(player, "Player cannot be null");
 
         try {
@@ -179,21 +188,19 @@ public class Team {
             sendMinecraftMessage(Messages.getMessage("team.minecraft.player-joined", "%player%", player.getName()));
             sendDiscordMessage(Messages.getMessage("team.discord.player-joined", "%player%", player.getName()));
 
-            TeamMember member = this.createTeamMember(player);
+            TeamMember member = new TeamMember(this, player, DEFAULT_ROLE);
             this.members.add(member);
 
-            member.displayTag(getColoredTag());
+            getVanillaTeam().addPlayer(player);
             syncAccount(player.getUniqueId());
+
+            return member;
         } finally {
             saveTeam();
         }
     }
 
-    private TeamMember createTeamMember(@Nonnull OfflinePlayer player) {
-        Objects.requireNonNull(player, "Player cannot be null");
-        return new TeamMember(this, player, DEFAULT_ROLE);
-    }
-
+    // Add kicked message
     public void kickMember(@Nonnull String name, @Nonnull CommandSender kicker) {
         Objects.requireNonNull(name, "Name cannot be null");
         Objects.requireNonNull(kicker, "Kicker cannot be null");
@@ -205,8 +212,8 @@ public class Team {
                 TeamMember teamMember = i.next();
                 if (name.equals(String.valueOf(teamMember.getName()))) { // Important, name is not null but
                                                                          // member.getName()
-                    // can be, so we do not use
-                    // "member.getName().equals(name)"
+                                                                         // can be, so we do not use
+                                                                         // "member.getName().equals(name)"
                     i.remove();
                     member = teamMember;
                     break;
@@ -220,18 +227,17 @@ public class Team {
 
             // Sending messages after removing player for preventing receiving the message
             // and check if the player really was removed
-            sendMinecraftMessage(Messages.getMessage("team.minecraft.player-kicked", "%player%", name,
-                    "%kicker%", kicker.getName()));
-            sendDiscordMessage(Messages.getMessage("team.discord.player-kicked", "%player%", name,
-                    "%kicker%", kicker.getName()));
+            member.sendMessage(Messages.getMessage("team.minecraft.you-being-kicked"));
+            sendMinecraftMessage(Messages.getMessage("team.minecraft.player-kicked", "%player%", name));
+            sendDiscordMessage(
+                    Messages.getMessage("team.discord.player-kicked", "%player%", name, "%by%", getByMessage(kicker)));
 
-            member.displayTag(null);
+            getVanillaTeam().removePlayer(member.getOfflinePlayer());
         } finally {
             saveTeam();
         }
     }
 
-    @SuppressWarnings("null")
     public void removeMember(@Nonnull TeamMember member) {
         Objects.requireNonNull(member, "Player cannot be null");
 
@@ -256,7 +262,7 @@ public class Team {
                     Messages.getMessage("team.minecraft.player-left", "%player%", member.getName()));
             sendDiscordMessage(Messages.getMessage("team.discord.player-left", "%player%", member.getName()));
 
-            member.displayTag(null);
+            getVanillaTeam().removePlayer(member.getOfflinePlayer());
             syncAccount(member.getUniqueId());
 
             if (this.members.size() <= 0) {
@@ -282,8 +288,12 @@ public class Team {
     }
 
     public void setPvp(boolean pvp) {
-        this.pvp = pvp;
-        saveTeam();
+        try {
+            this.pvp = pvp;
+            getVanillaTeam().setAllowFriendlyFire(!pvp);
+        } finally {
+            saveTeam();
+        }
     }
 
     public TextChannel getTextChannel() {
@@ -314,6 +324,7 @@ public class Team {
 
     public static void syncAccount(@Nonnull LinkedAccount account) {
         UUID playerUuid = account.getPlayerUniqueId();
+        Objects.requireNonNull(playerUuid, "Player UUID cannot be null");
 
         TeamMember member = getPlayerTeamMember(playerUuid);
         if (member != null) {
@@ -352,27 +363,13 @@ public class Team {
         }
     }
 
-    public String getColoredTag() {
-        return getColor() + tag;
-    }
-
-    public static void updatePlayerDisplayTag(@Nonnull Player player) {
-        TeamMember member = getPlayerTeamMember(player);
-        if (member != null) {
-            member.displayTag(member.getTeam().getColoredTag());
-        }
-        TeamMember.displayTag(player, null);
-    }
-
-    public void updateTagDisplayToPlayers() {
-        displayTagToPlayers(members, getColoredTag());
-    }
-
-    private static void displayTagToPlayers(@Nonnull List<TeamMember> players, @Nullable String tag) {
-        for (TeamMember member : players) {
-            member.displayTag(tag);
-        }
-    }
+    // public static void updatePlayerDisplayTag(@Nonnull Player player) {
+    // TeamMember member = getPlayerTeamMember(player);
+    // if (member != null) {
+    // member.displayTag(member.getTeam().getColoredTag());
+    // }
+    // TeamMember.displayTag(player, null);
+    // }
 
     public boolean containsPlayer(Player player) {
         return containsPlayer(player.getUniqueId());
@@ -500,7 +497,42 @@ public class Team {
         // update discord
         updateDiscord();
 
-        updateTagDisplayToPlayers();
+        this.vanillaTeam = getVanillaTeam();
+        for (TeamMember member : members) {
+            vanillaTeam.addPlayer(member.getOfflinePlayer());
+        }
+    }
+
+    @Nonnull
+    @SuppressWarnings("null")
+    public Team getVanillaTeam() {
+        if (isDeleted) {
+            throw new IllegalStateException("Cannot get vanilla team of deleted team");
+        }
+
+        if (vanillaTeam != null) {
+            return vanillaTeam;
+        }
+
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        vanillaTeam = scoreboard.getTeam(teamUuid.toString());
+
+        if (vanillaTeam == null) {
+            vanillaTeam = scoreboard.registerNewTeam(teamUuid.toString());
+        }
+
+        vanillaTeam.setDisplayName(getName());
+        vanillaTeam.setColor(getColor());
+        vanillaTeam.setPrefix(getPrefix());
+
+        return vanillaTeam;
+    }
+
+    private void deleteVanillaTeam() {
+        if (vanillaTeam != null) {
+            vanillaTeam.unregister();
+            this.vanillaTeam = null;
+        }
     }
 
     // #region Discord
@@ -511,7 +543,7 @@ public class Team {
         boolean newVoiceChannel = false;
 
         if (discordRole != null) {
-            discordRole.getManager().setColor(getColorHexadecimal(getColor())).queue();
+            discordRole.getManager().setColor(DiscordManager.getDiscordColor(getColor())).queue();
             discordRole.getManager().setName(getName()).queue();
         } else {
             createRole();
@@ -587,7 +619,7 @@ public class Team {
     private Role createRole() {
         discordRole = DiscordManager.getServer().createRole()
                 .setName(getName())
-                .setColor(getColorHexadecimal(getColor()))
+                .setColor(DiscordManager.getDiscordColor(getColor()))
                 .setMentionable(true).complete();
 
         if (discordRole == null) {
@@ -613,6 +645,7 @@ public class Team {
     public void delete() {
         isDeleted = true;
 
+        deleteVanillaTeam();
         teams.remove(this);
 
         if (textChannel != null) {
@@ -633,12 +666,14 @@ public class Team {
                 teamFile.delete();
             }
         }
+    }
 
-        Team.displayTagToPlayers(members, null);
+    public boolean isDeleted() {
+        return isDeleted;
     }
 
     @Nullable
-    public static Team getPlayerTeam(@Nonnull Player player) {
+    public static DiscordTeam getPlayerTeam(@Nonnull Player player) {
         Objects.requireNonNull(player, "Player cannot be null");
 
         TeamMember member = getPlayerTeamMember(player);
@@ -647,6 +682,7 @@ public class Team {
     }
 
     @Nullable
+    @SuppressWarnings("null")
     public static TeamMember getPlayerTeamMember(@Nonnull Player player) {
         Objects.requireNonNull(player, "Player cannot be null");
 
@@ -657,7 +693,7 @@ public class Team {
     public static TeamMember getPlayerTeamMember(@Nonnull UUID uuid) {
         Objects.requireNonNull(uuid, "UUID cannot be null");
 
-        for (Team team : teams) {
+        for (DiscordTeam team : teams) {
             for (TeamMember member : team.getMembers()) {
                 if (member.getUniqueId().equals(uuid)) {
                     return member;
@@ -673,7 +709,7 @@ public class Team {
         return teamUuid.hashCode();
     }
 
-    private static List<Team> teams;
+    private static List<DiscordTeam> teams;
     private static File teamsFolder;
 
     public static void saveTeams() {
@@ -684,7 +720,7 @@ public class Team {
                 // remove team file if it was deleted
                 for (File file : teamsFolder.listFiles()) {
                     boolean found = false;
-                    for (Team team : teams) {
+                    for (DiscordTeam team : teams) {
                         if (file.getName().equals(team.getTeamUuid().toString() + ".yml")) {
                             found = true;
                             break;
@@ -698,17 +734,14 @@ public class Team {
             }
 
             // add and update team files
-            for (Team team : teams) {
+            for (DiscordTeam team : teams) {
                 team.saveTeam();
             }
         }
     }
 
     public static void loadTeams(File teamsFolder) {
-        // TODO implement a check system for channels, if they were removed, the config
-        // had changed or the server
-
-        Team.teamsFolder = teamsFolder;
+        DiscordTeam.teamsFolder = teamsFolder;
         teams = new ArrayList<>();
 
         if (teamsFolder.exists()) {
@@ -723,7 +756,7 @@ public class Team {
                         continue;
                     }
 
-                    Team team = new Team();
+                    DiscordTeam team = new DiscordTeam();
                     team.loadTeamFromConfig(config);
 
                     if (team.members.isEmpty()) {
@@ -741,7 +774,7 @@ public class Team {
     }
 
     @SuppressWarnings("null")
-    public static Team createNewTeam(@Nonnull Player creator, @Nonnull String name, @Nullable String tag) {
+    public static DiscordTeam createNewTeam(@Nonnull Player creator, @Nonnull String name, @Nullable String tag) {
         Objects.requireNonNull(creator);
         Objects.requireNonNull(name);
 
@@ -752,13 +785,15 @@ public class Team {
         name = ChatColor.stripColor(name);
         tag = ChatColor.stripColor(tag);
 
-        Team team = new Team(UUID.randomUUID(), name, tag);
+        DiscordTeam team = new DiscordTeam(UUID.randomUUID(), name, tag);
 
         team.addMember(creator);
 
         team.color = DEFAULT_COLOR;
         team.open = true;
         team.pvp = true;
+
+        team.vanillaTeam = team.getVanillaTeam();
 
         team.createRole();
         team.createTextChannel();
@@ -770,17 +805,13 @@ public class Team {
         return team;
     }
 
-    private static int getColorHexadecimal(ChatColor color) {
-        return DiscordTeams.getConfiguration().getInt("discord.colors." + color.name().toLowerCase(), 0);
-    }
-
-    public static List<Team> getTeams() {
+    public static List<DiscordTeam> getTeams() {
         return List.copyOf(teams);
     }
 
     @Nullable
-    public static Team getTeamByName(@Nonnull String teamName) {
-        for (Team team : teams) {
+    public static DiscordTeam getTeamByName(@Nonnull String teamName) {
+        for (DiscordTeam team : teams) {
             if (team.getName().equalsIgnoreCase(teamName)) {
                 return team;
             }

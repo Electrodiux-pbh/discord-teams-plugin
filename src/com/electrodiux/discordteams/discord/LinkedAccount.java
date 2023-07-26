@@ -19,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
 
 import com.electrodiux.discordteams.DiscordManager;
 import com.electrodiux.discordteams.Messages;
-import com.electrodiux.discordteams.team.Team;
+import com.electrodiux.discordteams.team.DiscordTeam;
 
 import net.dv8tion.jda.api.entities.User;
 
@@ -97,14 +97,14 @@ public class LinkedAccount {
     public static void registerAccount(UUID playerId, long userId) {
         LinkedAccount account = new LinkedAccount(playerId, userId);
         accounts.add(account);
-        Team.syncAccount(account);
+        DiscordTeam.syncAccount(account);
 
         saveAccounts();
     }
 
     public static void unregisterAccount(@Nonnull LinkedAccount account) {
         accounts.remove(account);
-        Team.syncAccount(account);
+        DiscordTeam.syncAccount(account);
 
         Player player = account.getPlayer();
         User user = account.getDiscordUser();
